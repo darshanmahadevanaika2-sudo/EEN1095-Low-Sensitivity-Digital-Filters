@@ -1,12 +1,7 @@
 """
-metrics.py
-==========
 Performance metrics for the multi-precision digital filter evaluation framework.
 Computes pole displacement, stability margin, sensitivity norm,
 frequency response deviation, and roundoff noise accumulation.
-
-Author: Darshan Mahadeva Naika | A00090581
-Project: Design and Evaluation of Low-Sensitivity Digital Filters
 """
 
 import numpy as np
@@ -21,7 +16,6 @@ N_SAMPLES      = 1000    # output samples for roundoff noise measurement
 
 
 # ── IIR Metrics ───────────────────────────────────────────────────────────────
-
 def pole_displacement(poles_ref, poles_quant):
     """
     Compute pole displacement: L2 norm difference between

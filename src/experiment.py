@@ -1,15 +1,10 @@
 """
-experiment.py
-=============
 Main experimental evaluation runner for the multi-precision
 digital filter evaluation framework.
 
 Runs all configurations:
   - 3 IIR structures × 4 filter types × 3 orders × 4 precisions = 144 IIR configs
   - 3 FIR tap counts × 4 precisions = 12 FIR configs
-
-Author: Darshan Mahadeva Naika | A00090581
-Project: Design and Evaluation of Low-Sensitivity Digital Filters
 """
 
 import numpy as np

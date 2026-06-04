@@ -1,7 +1,5 @@
 """
-step2_direct_form_evaluation.py
-================================
-Step 2: Run Direct-Form IIR filter evaluation across all 4 precision levels.
+Run Direct-Form IIR filter evaluation across all 4 precision levels.
 
 This script:
 1. Designs Butterworth, Chebyshev I/II, and Elliptic IIR filters
@@ -9,9 +7,6 @@ This script:
 2. Converts coefficients to float16, float32, float64, mpmath
 3. Computes all 5 sensitivity metrics for each configuration
 4. Prints a clear summary table showing where filters become unstable
-
-Author: Darshan Mahadeva Naika | A00090581
-Project: EEN1095 — Design and Evaluation of Low-Sensitivity Digital Filters
 """
 
 import numpy as np

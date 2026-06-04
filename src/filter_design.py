@@ -1,12 +1,8 @@
 """
-filter_design.py
-================
 Core filter design module for the multi-precision evaluation framework.
 Designs IIR and FIR filters using SciPy and converts coefficients
 to target precision levels (float16, float32, float64, mpmath).
 
-Author: Darshan Mahadeva Naika | A00090581
-Project: Design and Evaluation of Low-Sensitivity Digital Filters
 """
 
 import numpy as np
