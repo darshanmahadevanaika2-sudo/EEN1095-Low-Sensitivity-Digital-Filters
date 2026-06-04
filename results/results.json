@@ -1,0 +1,522 @@
+{
+  "config": {
+    "iir_filter_types": [
+      "butter",
+      "cheby1",
+      "cheby2",
+      "ellip"
+    ],
+    "iir_orders": [
+      10,
+      20,
+      30
+    ],
+    "fir_taps": [
+      100,
+      200,
+      300
+    ],
+    "precision_levels": [
+      "float16",
+      "float32",
+      "float64",
+      "mpmath"
+    ],
+    "transition_bw": 0.02,
+    "cutoff": 0.3,
+    "n_freq_points": 4096,
+    "n_trials": 10,
+    "perturb_amp": 1e-06,
+    "n_samples": 1000
+  },
+  "iir_results": {
+    "direct_form": {
+      "butter": {
+        "order_10": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 0.4839887048814731,
+            "stability_margin": 0.10086505527841616,
+            "is_stable": true,
+            "sensitivity_norm": 0.09411521780838672,
+            "roundoff_noise": 1.5081299859367185
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 4.485071812918861e-05,
+            "stability_margin": 0.11947489512203913,
+            "is_stable": true,
+            "sensitivity_norm": 0.0005030381650531046,
+            "roundoff_noise": 0.00034113940328900876
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.11947803193876616,
+            "is_stable": true,
+            "sensitivity_norm": 0.000507050771391937,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.11947803193876616,
+            "is_stable": true,
+            "sensitivity_norm": 0.000507050771391937,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_20": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 2.7195843344962793,
+            "stability_margin": -0.4735571511645087,
+            "is_stable": false,
+            "sensitivity_norm": 0.9974685354388081,
+            "roundoff_noise": Infinity
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 0.50024545849907,
+            "stability_margin": 0.06724784859033706,
+            "is_stable": true,
+            "sensitivity_norm": 9.94094326065615,
+            "roundoff_noise": 0.2425438489909522
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.06158237129532729,
+            "is_stable": true,
+            "sensitivity_norm": 8.327457085418683,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.06158237129532729,
+            "is_stable": true,
+            "sensitivity_norm": 8.327457085418683,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_30": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 4.800941419383013,
+            "stability_margin": -1.3596717970837098,
+            "is_stable": false,
+            "sensitivity_norm": 0.9999977424750405,
+            "roundoff_noise": NaN
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 2.2449263266693373,
+            "stability_margin": -0.18258419203991938,
+            "is_stable": false,
+            "sensitivity_norm": 0.9991725774426833,
+            "roundoff_noise": 7.166331932346649e+69
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.04148106045647837,
+            "is_stable": true,
+            "sensitivity_norm": 0.9991514038310854,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.04148106045647837,
+            "is_stable": true,
+            "sensitivity_norm": 0.9991514038310854,
+            "roundoff_noise": 0.0
+          }
+        }
+      },
+      "cheby1": {
+        "order_10": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 1.1907084169547673,
+            "stability_margin": -0.5393885982338606,
+            "is_stable": false,
+            "sensitivity_norm": 0.9889124499094766,
+            "roundoff_noise": Infinity
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 0.00038111327891078594,
+            "stability_margin": 0.01793261459738782,
+            "is_stable": true,
+            "sensitivity_norm": 0.16166695422135163,
+            "roundoff_noise": 0.023650641940037218
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.017986682067491655,
+            "is_stable": true,
+            "sensitivity_norm": 0.16079262619339202,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.017986682067491655,
+            "is_stable": true,
+            "sensitivity_norm": 0.16079262619339202,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_20": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 4.43111219501189,
+            "stability_margin": -1.851215988622493,
+            "is_stable": false,
+            "sensitivity_norm": 1.0000353910720972,
+            "roundoff_noise": NaN
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 1.460758361071916,
+            "stability_margin": -0.43430331671851974,
+            "is_stable": false,
+            "sensitivity_norm": 1.0000257689994905,
+            "roundoff_noise": 2.420944284054241e+152
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.004529741670267762,
+            "is_stable": true,
+            "sensitivity_norm": 1.0000259152154911,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.004529741670267762,
+            "is_stable": true,
+            "sensitivity_norm": 1.0000259152154911,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_30": {
+          "float16": {
+            "error": "Array must not contain infs or NaNs"
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 4.30931808474373,
+            "stability_margin": -1.4914338531072486,
+            "is_stable": false,
+            "sensitivity_norm": 1.039765302038202,
+            "roundoff_noise": NaN
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.08972055996727124,
+            "is_stable": false,
+            "sensitivity_norm": 1.0397653020387096,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.08972055996727124,
+            "is_stable": false,
+            "sensitivity_norm": 1.0397653020387096,
+            "roundoff_noise": 0.0
+          }
+        }
+      },
+      "cheby2": {
+        "order_10": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 0.05580118700034879,
+            "stability_margin": 0.05450340693411582,
+            "is_stable": true,
+            "sensitivity_norm": 0.11902406241947736,
+            "roundoff_noise": 0.7466475007964616
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 7.44233236011703e-06,
+            "stability_margin": 0.05848682234413827,
+            "is_stable": true,
+            "sensitivity_norm": 0.00043450719538449254,
+            "roundoff_noise": 7.556990590449371e-05
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.05848833777430407,
+            "is_stable": true,
+            "sensitivity_norm": 0.0004336236788991865,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.05848833777430407,
+            "is_stable": true,
+            "sensitivity_norm": 0.0004336236788991865,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_20": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 0.5804072700740885,
+            "stability_margin": -0.11313326942190471,
+            "is_stable": false,
+            "sensitivity_norm": 0.9754216437702675,
+            "roundoff_noise": 4.682136796143303e+44
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 0.006088452296393211,
+            "stability_margin": 0.017463680633762912,
+            "is_stable": true,
+            "sensitivity_norm": 0.18607048448888794,
+            "roundoff_noise": 0.04028364090912468
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.016762312882303232,
+            "is_stable": true,
+            "sensitivity_norm": 0.19061095170974657,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.016762312882303232,
+            "is_stable": true,
+            "sensitivity_norm": 0.19061095170974657,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_30": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 1.1596123140745498,
+            "stability_margin": -0.37184564136796916,
+            "is_stable": false,
+            "sensitivity_norm": 0.9767344108762153,
+            "roundoff_noise": 2.4682661642703262e+134
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 0.17456287646670707,
+            "stability_margin": -0.010093483971298056,
+            "is_stable": false,
+            "sensitivity_norm": 0.9015751505106296,
+            "roundoff_noise": 6454.919559934487
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.007652205752544439,
+            "is_stable": true,
+            "sensitivity_norm": 0.9030573839934253,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.007652205752544439,
+            "is_stable": true,
+            "sensitivity_norm": 0.9030573839934253,
+            "roundoff_noise": 0.0
+          }
+        }
+      },
+      "ellip": {
+        "order_10": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 0.9799996284159057,
+            "stability_margin": -0.2903987894083462,
+            "is_stable": false,
+            "sensitivity_norm": 0.9917843010676537,
+            "roundoff_noise": 1.1000489819607136e+108
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 0.024609562594152805,
+            "stability_margin": -0.006717390802149392,
+            "is_stable": false,
+            "sensitivity_norm": 1.1143445447457174,
+            "roundoff_noise": 145.59478654890196
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.0009958054372504188,
+            "is_stable": true,
+            "sensitivity_norm": 1.1232615132193233,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": 0.0009958054372504188,
+            "is_stable": true,
+            "sensitivity_norm": 1.1232615132193233,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_20": {
+          "float16": {
+            "precision": "float16",
+            "pole_displacement": 3.761046272705696,
+            "stability_margin": -1.472952476297079,
+            "is_stable": false,
+            "sensitivity_norm": 1.1414335419726445,
+            "roundoff_noise": NaN
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 1.2002445925715362,
+            "stability_margin": -0.29137309697897296,
+            "is_stable": false,
+            "sensitivity_norm": 1.9851740581218156,
+            "roundoff_noise": 2.1213845837955389e+108
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.02994091106518093,
+            "is_stable": false,
+            "sensitivity_norm": 1.4346290715919094,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.02994091106518093,
+            "is_stable": false,
+            "sensitivity_norm": 1.4346290715919094,
+            "roundoff_noise": 0.0
+          }
+        },
+        "order_30": {
+          "float16": {
+            "error": "Array must not contain infs or NaNs"
+          },
+          "float32": {
+            "precision": "float32",
+            "pole_displacement": 3.1717889777046175,
+            "stability_margin": -0.7470240301597832,
+            "is_stable": false,
+            "sensitivity_norm": 1.1260482265382055,
+            "roundoff_noise": Infinity
+          },
+          "float64": {
+            "precision": "float64",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.17019145297143434,
+            "is_stable": false,
+            "sensitivity_norm": 0.9903123126660015,
+            "roundoff_noise": 0.0
+          },
+          "mpmath": {
+            "precision": "mpmath",
+            "pole_displacement": 0.0,
+            "stability_margin": -0.17019145297143434,
+            "is_stable": false,
+            "sensitivity_norm": 0.9903123126660015,
+            "roundoff_noise": 0.0
+          }
+        }
+      }
+    }
+  },
+  "fir_results": {
+    "taps_100": {
+      "float16": {
+        "precision": "float16",
+        "freq_deviation": 0.000204035946613687,
+        "freq_deviation_db": -73.80624700076433,
+        "roundoff_noise": 0.004023751332180814
+      },
+      "float32": {
+        "precision": "float32",
+        "freq_deviation": 2.7757361853453233e-08,
+        "freq_deviation_db": -151.1325041171552,
+        "roundoff_noise": 5.311051147071205e-07
+      },
+      "float64": {
+        "precision": "float64",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      },
+      "mpmath": {
+        "precision": "mpmath",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      }
+    },
+    "taps_200": {
+      "float16": {
+        "precision": "float16",
+        "freq_deviation": 0.00023750271921557715,
+        "freq_deviation_db": -72.48711762443642,
+        "roundoff_noise": 0.0037746604238588135
+      },
+      "float32": {
+        "precision": "float32",
+        "freq_deviation": 3.439193918541861e-08,
+        "freq_deviation_db": -149.27110353762743,
+        "roundoff_noise": 5.602581255685141e-07
+      },
+      "float64": {
+        "precision": "float64",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      },
+      "mpmath": {
+        "precision": "mpmath",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      }
+    },
+    "taps_300": {
+      "float16": {
+        "precision": "float16",
+        "freq_deviation": 0.0002027815020139144,
+        "freq_deviation_db": -73.85980926214827,
+        "roundoff_noise": 0.002956019659058113
+      },
+      "float32": {
+        "precision": "float32",
+        "freq_deviation": 2.8252880701629124e-08,
+        "freq_deviation_db": -150.97881386160174,
+        "roundoff_noise": 3.2382561881106363e-07
+      },
+      "float64": {
+        "precision": "float64",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      },
+      "mpmath": {
+        "precision": "mpmath",
+        "freq_deviation": 0.0,
+        "freq_deviation_db": -Infinity,
+        "roundoff_noise": 0.0
+      }
+    }
+  }
+}
