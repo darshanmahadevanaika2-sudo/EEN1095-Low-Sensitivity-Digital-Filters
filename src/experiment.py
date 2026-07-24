@@ -19,7 +19,7 @@ from filter_design import (
 )
 from metrics import compute_iir_metrics, compute_fir_metrics
 
-# ── Experiment Configuration ──────────────────────────────────────────────────
+# Experiment Configuration
 IIR_FILTER_TYPES  = ['butter', 'cheby1', 'cheby2', 'ellip']
 IIR_ORDERS        = [10, 20, 30]
 FIR_TAPS          = [100, 200, 300]
@@ -169,7 +169,7 @@ def run_all_experiments(save_results=True):
     print("Darshan Mahadeva Naika | A00090581")
     print("=" * 70)
 
-    # ── IIR Experiments ───────────────────────────────────────────────────────
+    # IIR Experiments
     print("\n--- IIR FILTER EXPERIMENTS ---")
     for structure in IIR_STRUCTURES:
         all_results['iir_results'][structure] = {}
@@ -181,14 +181,14 @@ def run_all_experiments(save_results=True):
                 if result:
                     all_results['iir_results'][structure][filter_type][key] = result
 
-    # ── FIR Experiments ───────────────────────────────────────────────────────
+    # FIR Experiments
     print("\n--- FIR FILTER EXPERIMENTS ---")
     for taps in FIR_TAPS:
         key = f"taps_{taps}"
         result = run_fir_experiment(taps)
         all_results['fir_results'][key] = result
 
-    # ── Save Results ──────────────────────────────────────────────────────────
+    # Save Results
     if save_results:
         # Convert numpy types for JSON serialization
         def convert_for_json(obj):

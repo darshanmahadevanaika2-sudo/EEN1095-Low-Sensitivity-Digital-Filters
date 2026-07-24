@@ -15,7 +15,7 @@ import mpmath
 import warnings
 warnings.filterwarnings('ignore')
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# Configuration
 mpmath.mp.dps = 50          # 50 decimal digit precision for mpmath
 
 FILTER_TYPES  = ['butter', 'cheby1', 'cheby2', 'ellip']
@@ -31,7 +31,7 @@ PERTURB       = 1e-6        # Perturbation amplitude
 N_SAMPLES     = 1000        # Samples for roundoff noise
 
 
-# ── Helper: Design filter at float64 ─────────────────────────────────────────
+# Helper: Design filter at float64
 def design_filter(ftype, order):
     """Design IIR filter and return b, a coefficients at float64."""
     wp = CUTOFF
@@ -50,7 +50,7 @@ def design_filter(ftype, order):
         return None, None
 
 
-# ── Helper: Convert to precision ──────────────────────────────────────────────
+# Helper: Convert to precision
 def convert(coeffs, precision):
     """Convert float64 coefficients to target precision."""
     if precision == 'float16':
@@ -63,7 +63,7 @@ def convert(coeffs, precision):
         return np.array([float(mpmath.mpf(str(c))) for c in coeffs], dtype=np.float64)
 
 
-# ── Helper: Get poles ─────────────────────────────────────────────────────────
+# Helper: Get poles
 def get_poles(a):
     """Compute poles from denominator polynomial."""
     try:
@@ -72,7 +72,7 @@ def get_poles(a):
         return np.array([])
 
 
-# ── Metric 1: Pole Displacement ───────────────────────────────────────────────
+# Metric 1: Pole Displacement
 def pole_displacement(poles_ref, poles_q):
     """L2 norm of pole displacement after quantisation."""
     if len(poles_ref) == 0 or len(poles_q) == 0:
@@ -83,7 +83,7 @@ def pole_displacement(poles_ref, poles_q):
     return float(np.linalg.norm(ref[:n] - q[:n]))
 
 
-# ── Metric 2: Stability Margin ────────────────────────────────────────────────
+# Metric 2: Stability Margin
 def stability_margin(poles):
     """
     SM = min{1 - |pk|}
@@ -96,7 +96,7 @@ def stability_margin(poles):
     return sm, bool(np.all(mags < 1.0))
 
 
-# ── Metric 3: Sensitivity Norm ────────────────────────────────────────────────
+# Metric 3: Sensitivity Norm
 def sensitivity_norm(b_ref, a_ref, b_q, a_q):
     """
     S = average ||H_perturbed - H_reference||_inf over N_TRIALS
@@ -124,7 +124,7 @@ def sensitivity_norm(b_ref, a_ref, b_q, a_q):
     return float(np.mean(norms)) if norms else np.nan
 
 
-# ── Metric 4: Frequency Response Deviation ───────────────────────────────────
+# Metric 4: Frequency Response Deviation
 def freq_response_deviation(b_ref, a_ref, b_q, a_q):
     """
     Dev = ||H_quantised - H_reference||_inf
@@ -141,8 +141,7 @@ def freq_response_deviation(b_ref, a_ref, b_q, a_q):
     except:
         return np.nan, np.nan
 
-
-# ── Metric 5: Roundoff Noise ──────────────────────────────────────────────────
+# Metric 5: Roundoff Noise
 def roundoff_noise(b_ref, a_ref, b_q, a_q):
     """
     Noise = ||y_quantised - y_reference||_2
@@ -159,8 +158,7 @@ def roundoff_noise(b_ref, a_ref, b_q, a_q):
     except:
         return np.nan
 
-
-# ── Main Evaluation ───────────────────────────────────────────────────────────
+# Main Evaluation
 def run_direct_form_evaluation():
     """
     Run complete Direct-Form evaluation across all filter types,
@@ -221,7 +219,7 @@ def run_direct_form_evaluation():
                     'roundoff':   rn,
                 }
 
-    # ── Summary Table ─────────────────────────────────────────────────────────
+    # Summary Table
     print(f"\n{'=' * 80}")
     print("STABILITY SUMMARY — DIRECT-FORM STRUCTURE")
     print(f"{'=' * 80}")

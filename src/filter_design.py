@@ -11,7 +11,7 @@ import mpmath
 import warnings
 warnings.filterwarnings('ignore')
 
-# ── Precision levels ──────────────────────────────────────────────────────────
+# Precision levels
 PRECISION_LEVELS = {
     'float16': np.float16,
     'float32': np.float32,
@@ -27,7 +27,7 @@ def set_mpmath_precision():
     mpmath.mp.dps = MPMATH_DPS
 
 
-# ── IIR Filter Design ─────────────────────────────────────────────────────────
+# IIR Filter Design
 def design_iir_filter(filter_type, order, cutoff=0.3, btype='low',
                        transition_bw=0.02, rp=1.0, rs=40.0):
     """
@@ -81,7 +81,7 @@ def design_iir_filter(filter_type, order, cutoff=0.3, btype='low',
     return sos, b, a
 
 
-# ── FIR Filter Design ─────────────────────────────────────────────────────────
+# FIR Filter Design
 def design_fir_filter(num_taps, cutoff=0.3, window='kaiser', beta=8.6):
     """
     Design a FIR filter using the Kaiser window method.
@@ -109,7 +109,7 @@ def design_fir_filter(num_taps, cutoff=0.3, window='kaiser', beta=8.6):
     return h
 
 
-# ── Precision Conversion ──────────────────────────────────────────────────────
+# Precision Conversion
 def convert_to_precision(coeffs, precision):
     """
     Convert filter coefficients to the target precision level.
@@ -197,7 +197,7 @@ def get_poles_from_sos(sos_coeffs, precision):
     return poles
 
 
-# ── Frequency Response ────────────────────────────────────────────────────────
+# Frequency Response
 def compute_freq_response(b, a, n_points=4096, precision='float64'):
     """
     Compute the frequency response magnitude of a filter.

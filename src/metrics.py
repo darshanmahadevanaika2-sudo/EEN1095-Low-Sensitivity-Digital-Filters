@@ -15,7 +15,7 @@ PERTURB_AMP    = 1e-6    # perturbation amplitude (relative to coeff magnitude)
 N_SAMPLES      = 1000    # output samples for roundoff noise measurement
 
 
-# ── IIR Metrics ───────────────────────────────────────────────────────────────
+# IIR Metrics
 def pole_displacement(poles_ref, poles_quant):
     """
     Compute pole displacement: L2 norm difference between
@@ -127,7 +127,7 @@ def sensitivity_norm(b_ref, a_ref, b_quant, a_quant,
     return float(np.mean(valid)) if valid else np.nan
 
 
-# ── FIR Metrics ───────────────────────────────────────────────────────────────
+# FIR Metrics
 
 def freq_response_deviation(h_ref, h_quant, n_points=N_FREQ_POINTS):
     """
@@ -211,7 +211,7 @@ def roundoff_noise(b_ref, a_ref, b_quant, a_quant,
     return noise
 
 
-# ── Combined Metric Computation ───────────────────────────────────────────────
+# Combined Metric Computation
 
 def compute_iir_metrics(b_ref, a_ref, b_quant, a_quant,
                          poles_ref, poles_quant, precision_name):

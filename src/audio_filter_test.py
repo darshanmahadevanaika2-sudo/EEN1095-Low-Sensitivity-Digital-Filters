@@ -1,7 +1,3 @@
-"""
-Student: Darshan Mahadeva Naika | A00090581 | EEN1095
-Supervisor: Martin Collier
-"""
 
 import numpy as np
 from scipy import signal
@@ -96,7 +92,7 @@ def lfilter_with_overflow_monitor(b, a, x, precision='float64'):
       w[n] = x[n] - a1*w[n-1] - a2*w[n-2] - ... - aN*w[n-N]
       y[n] = b0*w[n] + b1*w[n-1] + ... + bM*w[n-M]
 
-    We record:
+    Output Recorded:
       - max state variable value at each sample
       - first sample where overflow (inf/nan) occurs
       - which state variable overflowed first
@@ -412,8 +408,6 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
     2. Impulse response DTFT
     3. Sinusoidal method measured points
 
-    This is Martin's request: compare transfer function to theoretical,
-    and also frequency response — all on the same graph.
     """
     print(f"\n{'='*65}")
     print(f"TEST 4: FREQUENCY RESPONSE COMPARISON PLOT")
