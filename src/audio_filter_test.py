@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 mpmath.mp.dps = 50
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# AUDIO Configuration
 FS          = 48000
 CUTOFF_HZ   = 8000
 CUTOFF_NORM = CUTOFF_HZ / (FS / 2)
@@ -23,13 +23,24 @@ PRECISIONS  = ['float16', 'float32', 'float64', 'mpmath']
 RESULTS_DIR = os.path.join('..', 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Test frequencies — multiples of fs/N_ss = 48000/2000 = 24 Hz
 TEST_FREQS_HZ = [480, 1200, 2400, 4800, 7200, 8400, 12000]
 COLORS = {'float16':'tab:red','float32':'tab:orange',
           'float64':'tab:blue','mpmath':'tab:green'}
 
+# VLF Configuration
+FS_VLF          = 1000
+CUTOFF_VLF      = 100
+CUTOFF_NORM_VLF = CUTOFF_VLF / (FS_VLF / 2)
+ORDER_BA_VLF    = 8    # Highest stable at float16 for VLF (SM=+0.045)
+ORDER_SOS_VLF   = 12   # Highest with no float16 coefficient underflow
+N_IMPULSE_VLF   = 2000
+N_SINE_VLF      = 4000
+N_SETTLE_VLF    = 2000
+N_AUDIO_VLF     = FS_VLF * 5
+TEST_FREQS_VLF  = [10, 50, 100, 150, 200, 300, 400]
 
-# Helpers 
+
+# Shared Helpers
 def convert_ba(c, p):
     if p == 'mpmath':
         return np.array([float(mpmath.mpf(str(x))) for x in c], dtype=np.float64)
@@ -73,58 +84,47 @@ def save_wav(fname, data, fs=FS):
         f.write(d16.tobytes())
 
 def speech_signal(n_samples, fs):
+    """Speech-like test signal: 150Hz voiced fundamental + harmonics + test tones."""
     t = np.arange(n_samples) / fs
     s = sum(np.sin(2*np.pi*150*k*t)/k for k in range(1,9) if 150*k < fs/2)
     for f in [440, 880, 2000, 4000]:
         s += 0.3 * np.sin(2*np.pi*f*t)
     return (s / np.max(np.abs(s))).astype(np.float64)
 
+def vlf_signal(n_samples, fs):
+    """VLF test signal: 50Hz power line + harmonics + geophysical components."""
+    t = np.arange(n_samples) / fs
+    s  = np.sin(2*np.pi*50*t)
+    s += 0.5 * np.sin(2*np.pi*100*t)
+    s += 0.3 * np.sin(2*np.pi*150*t)
+    s += 0.2 * np.sin(2*np.pi*200*t)
+    s += 0.4 * np.sin(2*np.pi*10*t)
+    s += 0.3 * np.sin(2*np.pi*30*t)
+    s += 0.1 * np.sin(2*np.pi*1*t)
+    return (s / np.max(np.abs(s))).astype(np.float64)
 
-# INTERNAL OVERFLOW TRACKER
+
+# Internal Overflow Monitor
 def lfilter_with_overflow_monitor(b, a, x, precision='float64'):
-    """
-    Manual IIR filter implementation that monitors internal state
-    variables at EVERY sample step — not just the output.
-    This is what Martin asked for: track WHERE INSIDE the filter
-    overflow occurs.
-
-    Direct-Form II Transposed:
-      w[n] = x[n] - a1*w[n-1] - a2*w[n-2] - ... - aN*w[n-N]
-      y[n] = b0*w[n] + b1*w[n-1] + ... + bM*w[n-M]
-
-    Output Recorded:
-      - max state variable value at each sample
-      - first sample where overflow (inf/nan) occurs
-      - which state variable overflowed first
-    """
+    """Monitor internal state variables at EVERY sample — track WHERE overflow occurs."""
     N_samples = len(x)
     order = len(a) - 1
-    w = np.zeros(order + 1)   # state variables (internal registers)
-
+    w = np.zeros(order + 1)
     y = np.zeros(N_samples)
     max_state_per_sample = np.zeros(N_samples)
     overflow_sample = None
     overflow_state  = None
 
     for n in range(N_samples):
-        # State update (Direct-Form II transposed)
         w_new = float(x[n])
         for k in range(1, order + 1):
             w_new -= float(a[k]) * float(w[k-1]) if k-1 < len(w) else 0.0
-
-        # Shift state registers
         w[1:] = w[:-1]
         w[0]  = w_new
-
-        # Output
         y_n = sum(float(b[k]) * float(w[k]) for k in range(min(len(b), order+1)))
         y[n] = y_n
-
-        # Monitor internal state variables
         max_state = np.max(np.abs(w))
         max_state_per_sample[n] = max_state
-
-        # Check for first overflow
         if overflow_sample is None:
             if not np.isfinite(max_state) or (precision == 'float16' and max_state > 60000):
                 overflow_sample = n
@@ -134,14 +134,9 @@ def lfilter_with_overflow_monitor(b, a, x, precision='float64'):
 
 
 def sosfilt_with_overflow_monitor(sos, x, precision='float64'):
-    """
-    Manual SOS filter with internal state monitoring.
-    Each 2nd-order section has 2 state variables (zi).
-    We monitor which section overflows first.
-    """
+    """Monitor SOS internal state variables — track which section overflows first."""
     N_samples = len(x)
     n_sections = len(sos)
-
     y = x.copy().astype(np.float64)
     max_state_all = np.zeros((N_samples, n_sections))
     overflow_sample  = None
@@ -159,25 +154,22 @@ def sosfilt_with_overflow_monitor(sos, x, precision='float64'):
             yn = b_s[0]*xn + z[0]
             z[0] = b_s[1]*xn - a_s[1]*yn + z[1]
             z[1] = b_s[2]*xn - a_s[2]*yn
-
             y_out[n] = yn
             ms = max(abs(z[0]), abs(z[1]))
             max_state_all[n, sec_idx] = ms
-
             if overflow_sample is None:
                 if not np.isfinite(ms) or (precision == 'float16' and ms > 60000):
                     overflow_sample  = n
                     overflow_section = sec_idx
-
         y = y_out
 
     return y, max_state_all, overflow_sample, overflow_section
 
+# PART 1 — AUDIO RANGE TESTS (fs=48000Hz, cutoff=8000Hz)
 
-# DYNAMIC RANGE CHEC
 def check_dynamic_range():
     print(f"\n{'='*65}")
-    print(f"DYNAMIC RANGE — Coefficient Underflow Analysis")
+    print(f"DYNAMIC RANGE — Coefficient Underflow Analysis (AUDIO)")
     print(f"float16 min representable: {np.finfo(np.float16).tiny:.2e}")
     print(f"float16 max representable: {np.finfo(np.float16).max:.2e}")
     print(f"{'='*65}")
@@ -197,10 +189,9 @@ def check_dynamic_range():
     print(f"\nSOS order {ORDER_SOS} chosen: highest with no float16 underflow")
 
 
-# TEST 1: IMPULSE RESPONSE
 def test1_impulse():
     print(f"\n{'='*65}")
-    print(f"TEST 1: IMPULSE RESPONSE METHOD")
+    print(f"TEST 1: IMPULSE RESPONSE METHOD (AUDIO)")
     print(f"Feed delta[n] -> filter -> DTFT of h[n] -> compare vs freqz()")
     print(f"{'='*65}")
 
@@ -216,59 +207,48 @@ def test1_impulse():
     H_ref_mag = np.abs(H_ref)
 
     dtft_results = {}
-
     for label, sid, order in [('BA  (Direct-Form)','ba', ORDER_BA),
                                ('SOS (Ladder)',    'sos',ORDER_SOS)]:
         print(f"\n  {label} order {order}")
         print(f"  {'Precision':<10}{'Max|h[n]|':>12}{'DTFT_err':>12}"
-              f"{'Max_state':>12}{'1st_OVF_sample':>16}{'Status':>8}")
+              f"{'Max_state':>12}{'1st_OVF':>16}{'Status':>8}")
         print(f"  {'-'*72}")
 
         dtft_results[sid] = {}
         for p in PRECISIONS:
             if sid == 'ba':
                 b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
-                h, ms_arr, ovf_samp, ovf_st = \
-                    lfilter_with_overflow_monitor(b_q, a_q, x, p)
+                h,ms_arr,ovf_samp,_ = lfilter_with_overflow_monitor(b_q,a_q,x,p)
                 stab = sm_ba(a_q)
             else:
                 s_q=convert_sos(sos_ref,p)
-                h, ms_arr, ovf_samp, ovf_sec = \
-                    sosfilt_with_overflow_monitor(s_q, x, p)
+                h,ms_arr,ovf_samp,_ = sosfilt_with_overflow_monitor(s_q,x,p)
                 stab = sm_sos(s_q)
 
             h = np.array(h, dtype=np.float64)
-            mx_h = float(np.max(np.abs(h[np.isfinite(h)]))) \
-                   if np.any(np.isfinite(h)) else np.inf
-            mx_state = float(np.max(ms_arr[np.isfinite(ms_arr)])) \
-                       if np.any(np.isfinite(ms_arr)) else np.inf
+            mx_h = float(np.max(np.abs(h[np.isfinite(h)]))) if np.any(np.isfinite(h)) else np.inf
+            mx_st = float(np.max(ms_arr[np.isfinite(ms_arr)])) if np.any(np.isfinite(ms_arr)) else np.inf
 
             if not np.any(np.isfinite(h)):
                 print(f"  {p:<10}{'OVERFLOW':>12}{'---':>12}"
-                      f"{mx_state:>12.2e}{str(ovf_samp):>16}{'FAIL':>8}")
+                      f"{mx_st:>12.2e}{str(ovf_samp):>16}{'FAIL':>8}")
                 dtft_results[sid][p] = None
                 continue
 
-            H_dtft = np.array([np.sum(h*np.exp(-1j*2*np.pi*f/FS*n_arr))
-                                for f in freqs])
+            H_dtft = np.array([np.sum(h*np.exp(-1j*2*np.pi*f/FS*n_arr)) for f in freqs])
             err = float(np.max(np.abs(np.abs(H_dtft)-H_ref_mag)))
             status = 'OK' if stab > 0 and err < 2.0 else 'DEGRADE'
             ovf_str = str(ovf_samp) if ovf_samp else 'None'
-
             print(f"  {p:<10}{mx_h:>12.4f}{err:>12.2e}"
-                  f"{mx_state:>12.4f}{ovf_str:>16}{status:>8}")
+                  f"{mx_st:>12.4f}{ovf_str:>16}{status:>8}")
             dtft_results[sid][p] = (freqs, np.abs(H_dtft))
 
     return dtft_results, freqs, H_ref_mag, w_ref
 
 
-# TEST 2: SINUSOIDAL METHOD
 def test2_sinusoidal():
     print(f"\n{'='*65}")
-    print(f"TEST 2: SINUSOIDAL METHOD (Standard Test Tone)")
-    print(f"Feed sin(2pi*f*n) -> filter -> measure steady-state |H|")
-    print(f"Monitor INTERNAL state variables for overflow")
-    print(f"Save filtered sine waves as .wav for listening")
+    print(f"TEST 2: SINUSOIDAL METHOD (AUDIO — Standard Test Tone)")
     print(f"{'='*65}")
 
     b_ref,a_ref = signal.butter(ORDER_BA, CUTOFF_NORM, output='ba')
@@ -276,78 +256,56 @@ def test2_sinusoidal():
     b_ref=b_ref.astype(np.float64); a_ref=a_ref.astype(np.float64)
     sos_ref=sos_ref.astype(np.float64)
 
-    sine_results = {}
-
     for label, sid, order in [('BA  (Direct-Form)','ba', ORDER_BA),
                                ('SOS (Ladder)',    'sos',ORDER_SOS)]:
         print(f"\n  {label} order {order}")
         print(f"  {'Freq(Hz)':<10}{'|H|_theory':>11}{'Precision':<10}"
-              f"{'|H|_meas':>10}{'err':>10}{'Max_state':>12}"
-              f"{'1st_OVF':>10}{'Overflow':>10}")
-        print(f"  {'-'*85}")
+              f"{'|H|_meas':>10}{'err':>10}{'Max_state':>12}{'Overflow':>10}")
+        print(f"  {'-'*80}")
 
-        sine_results[sid] = {}
         for f_hz in TEST_FREQS_HZ:
             _, H_th = signal.freqz(b_ref, a_ref, worN=[f_hz], fs=FS)
             th = float(np.abs(H_th[0]))
-            n  = np.arange(N_SINE)
-            x  = np.sin(2*np.pi*f_hz/FS*n)
+            n = np.arange(N_SINE)
+            x = np.sin(2*np.pi*f_hz/FS*n)
 
             for p in PRECISIONS:
                 if sid == 'ba':
                     b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
-                    y, ms_arr, ovf_s, _ = \
-                        lfilter_with_overflow_monitor(b_q, a_q, x, p)
+                    y,ms_arr,ovf_s,_ = lfilter_with_overflow_monitor(b_q,a_q,x,p)
                 else:
                     s_q=convert_sos(sos_ref,p)
-                    y, ms_arr, ovf_s, ovf_sec = \
-                        sosfilt_with_overflow_monitor(s_q, x, p)
+                    y,ms_arr,ovf_s,_ = sosfilt_with_overflow_monitor(s_q,x,p)
 
                 y=np.array(y,dtype=np.float64)
-                mx_state = float(np.max(ms_arr[np.isfinite(ms_arr)])) \
-                           if np.any(np.isfinite(ms_arr)) else np.inf
-                ovf = not np.all(np.isfinite(y)) or \
-                      (p=='float16' and mx_state > 60000)
-                ovf_str = str(ovf_s) if ovf_s else 'None'
+                mx_st = float(np.max(ms_arr[np.isfinite(ms_arr)])) if np.any(np.isfinite(ms_arr)) else np.inf
+                ovf = not np.all(np.isfinite(y))
+                y_ss=y[N_SETTLE:]; x_ss=x[N_SETTLE:]
 
-                y_ss = y[N_SETTLE:]; x_ss = x[N_SETTLE:]
-                if not np.any(np.isfinite(y_ss)) or ovf:
-                    amp=np.nan; err=np.nan
+                if ovf or not np.any(np.isfinite(y_ss)):
                     print(f"  {f_hz:<10}{th:>11.4f}{p:<10}"
-                          f"{'OVERFLOW':>10}{'---':>10}"
-                          f"{mx_state:>12.2e}{ovf_str:>10}{'YES':>10}")
-                else:
-                    amp = np.std(y_ss)/(np.std(x_ss)+1e-12)
-                    err = abs(amp-th)
-                    print(f"  {f_hz:<10}{th:>11.4f}{p:<10}"
-                          f"{amp:>10.4f}{err:>10.2e}"
-                          f"{mx_state:>12.4f}{ovf_str:>10}"
-                          f"{'YES' if ovf else 'NO':>10}")
+                          f"{'OVERFLOW':>10}{'---':>10}{mx_st:>12.2e}{'YES':>10}")
+                    fname=f"sine_{f_hz}Hz_{sid.upper()}_order{order}_{p}.wav"
+                    save_wav(os.path.join(RESULTS_DIR,fname), np.zeros(N_SINE))
+                    continue
 
-                # Save filtered sine wave as .wav for listening
-                fname = os.path.join(RESULTS_DIR,
-                    f'sine_{f_hz}Hz_{sid.upper()}_order{order}_{p}.wav')
-                y_save = y if np.any(np.isfinite(y)) else np.zeros_like(x)
-                save_wav(fname, y_save)
-
-                key = (f_hz, p)
-                sine_results[sid][key] = {'theory':th,'measured':amp,'err':err}
+                amp = np.std(y_ss)/(np.std(x_ss)+1e-12)
+                err = abs(amp-th)
+                print(f"  {f_hz:<10}{th:>11.4f}{p:<10}"
+                      f"{amp:>10.4f}{err:>10.2e}{mx_st:>12.4f}{'YES' if ovf else 'NO':>10}")
+                fname=f"sine_{f_hz}Hz_{sid.upper()}_order{order}_{p}.wav"
+                save_wav(os.path.join(RESULTS_DIR,fname), y)
             print()
 
-    return sine_results
 
-
-# TEST 3: AUDIO SIGNAL
 def test3_audio():
     print(f"\n{'='*65}")
     print(f"TEST 3: AUDIO SIGNAL TEST (Subjective Listening)")
-    print(f"Speech-like signal -> filter -> save .wav -> listen")
-    print(f"Measure SNR = 10*log10(signal_power / noise_power)")
     print(f"{'='*65}")
 
     x = speech_signal(N_AUDIO, FS)
     save_wav(os.path.join(RESULTS_DIR,'audio_input.wav'), x)
-    print(f"\n  Saved: audio_input.wav")
+    print(f"\n  Input: audio_input.wav")
     print(f"  Content: 150Hz speech + harmonics + 440/880/2000/4000Hz tones")
 
     b_ref,a_ref = signal.butter(ORDER_BA,  CUTOFF_NORM, output='ba')
@@ -370,25 +328,20 @@ def test3_audio():
         for p in PRECISIONS:
             if sid == 'ba':
                 b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
-                y, ms_arr, ovf_s, _ = \
-                    lfilter_with_overflow_monitor(b_q, a_q, x, p)
+                y,ms_arr,ovf_s,_ = lfilter_with_overflow_monitor(b_q,a_q,x,p)
             else:
                 s_q=convert_sos(sos_ref,p)
-                y, ms_arr, ovf_s, _ = \
-                    sosfilt_with_overflow_monitor(s_q, x, p)
+                y,ms_arr,ovf_s,_ = sosfilt_with_overflow_monitor(s_q,x,p)
 
             y=np.array(y,dtype=np.float64)
-            mx_out = float(np.max(np.abs(y[np.isfinite(y)]))) \
-                     if np.any(np.isfinite(y)) else np.inf
-            mx_state = float(np.max(ms_arr[np.isfinite(ms_arr)])) \
-                       if np.any(np.isfinite(ms_arr)) else np.inf
+            mx_out = float(np.max(np.abs(y[np.isfinite(y)]))) if np.any(np.isfinite(y)) else np.inf
+            mx_st  = float(np.max(ms_arr[np.isfinite(ms_arr)])) if np.any(np.isfinite(ms_arr)) else np.inf
             ovf_str = str(ovf_s) if ovf_s else 'None'
 
             if not np.any(np.isfinite(y)):
                 snr_str='OVERFLOW'; y_sv=np.zeros_like(x)
             else:
-                noise=y-ref
-                sp=np.mean(ref**2); np_=np.mean(noise**2)
+                noise=y-ref; sp=np.mean(ref**2); np_=np.mean(noise**2)
                 snr_db=10*np.log10(sp/np_) if np_>0 else np.inf
                 snr_str=f"{snr_db:.1f}" if np.isfinite(snr_db) else "inf"
                 y_sv=y
@@ -396,21 +349,13 @@ def test3_audio():
             fname=f"audio_{sid.upper()}_order{order}_{p}.wav"
             save_wav(os.path.join(RESULTS_DIR,fname), y_sv)
             print(f"  {label:<18}{p:<10}{mx_out:>12.4f}"
-                  f"{mx_state:>12.4f}{ovf_str:>10}{snr_str:>10}  {fname}")
+                  f"{mx_st:>12.4f}{ovf_str:>10}{snr_str:>10}  {fname}")
         print()
 
 
-# TEST 4: FREQUENCY RESPONSE COMPARISON PLOT
 def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
-    """
-    Plot all three methods on the same axes:
-    1. freqz() theoretical reference
-    2. Impulse response DTFT
-    3. Sinusoidal method measured points
-
-    """
     print(f"\n{'='*65}")
-    print(f"TEST 4: FREQUENCY RESPONSE COMPARISON PLOT")
+    print(f"TEST 4: FREQUENCY RESPONSE COMPARISON PLOT (AUDIO)")
     print(f"freqz() vs Impulse DTFT vs Sinusoidal method — same axes")
     print(f"{'='*65}")
 
@@ -429,8 +374,6 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
 
         for idx, p in enumerate(PRECISIONS):
             ax = axes[idx//2][idx%2]
-
-            # 1 — freqz() theoretical reference
             if sid == 'ba':
                 b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
                 w_q, H_q = signal.freqz(b_q, a_q, worN=1024, fs=FS)
@@ -441,17 +384,13 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
             ax.plot(w_q, 20*np.log10(np.abs(H_q)+1e-300),
                     '-', color='tab:blue', lw=1.5, label='freqz() theoretical', zorder=3)
 
-            # 2 — Impulse response DTFT
             if dtft_results.get(sid,{}).get(p) is not None:
                 f_dtft, H_dtft_mag = dtft_results[sid][p]
                 ax.plot(f_dtft, 20*np.log10(H_dtft_mag+1e-300),
-                        '--', color='tab:orange', lw=1.5,
-                        label='Impulse DTFT', zorder=2)
+                        '--', color='tab:orange', lw=1.5, label='Impulse DTFT', zorder=2)
 
-            # 3 — Sinusoidal method measured points
             x_pts = []; y_pts = []
             for f_hz in TEST_FREQS_HZ:
-                _, H_th = signal.freqz(b_ref, a_ref, worN=[f_hz], fs=FS)
                 n = np.arange(N_SINE)
                 x_in = np.sin(2*np.pi*f_hz/FS*n)
                 if sid == 'ba':
@@ -472,10 +411,8 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
                 ax.scatter(x_pts, y_pts, color='tab:red', s=60, zorder=4,
                            label='Sinusoidal measured', marker='o')
 
-            # Reference (float64) in grey
             ax.plot(w_ref, 20*np.log10(H_ref_mag+1e-300),
                     ':', color='gray', lw=1, label='float64 ref', zorder=1)
-
             ax.axvline(CUTOFF_HZ, color='black', ls=':', lw=0.8)
             ax.set_ylim(-80, 10)
             ax.set_xlabel('Frequency (Hz)')
@@ -485,17 +422,15 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
             ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        fname = os.path.join(RESULTS_DIR,
-                f'freqz_comparison_{sid}_order{order}.png')
+        fname = os.path.join(RESULTS_DIR, f'freqz_comparison_{sid}_order{order}.png')
         plt.savefig(fname, dpi=120)
         plt.close()
         print(f"  Saved: {fname}")
 
 
-# DETERIORATION SWEEP
 def deterioration_sweep():
     print(f"\n{'='*65}")
-    print(f"DETERIORATION SWEEP")
+    print(f"DETERIORATION SWEEP (AUDIO)")
     print(f"At what filter order does SNR drop below 40 dB?")
     print(f"{'='*65}")
 
@@ -508,8 +443,7 @@ def deterioration_sweep():
     for order in range(2, 23, 2):
         b,a=signal.butter(order,CUTOFF_NORM,output='ba')
         sos=signal.butter(order,CUTOFF_NORM,output='sos')
-        b=b.astype(np.float64); a=a.astype(np.float64)
-        sos=sos.astype(np.float64)
+        b=b.astype(np.float64); a=a.astype(np.float64); sos=sos.astype(np.float64)
         ref_ba  = signal.lfilter(b,a,x)
         ref_sos = signal.sosfilt(sos,x)
 
@@ -533,16 +467,250 @@ def deterioration_sweep():
                         row+=f"{snr:>8.1f}{flag}"
                 except: row+=f"{'ERR':>9}"
         print(row)
-
     print("\n* = SNR below 40 dB (audibly deteriorated)")
 
 
-# MAIN
+# PART 2 — VLF RANGE TESTS (fs=1000Hz, cutoff=100Hz)
+
+def vlf_stability_check():
+    print(f"\n{'='*65}")
+    print(f"VLF STABILITY CHECK")
+    print(f"fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz  normalised={CUTOFF_NORM_VLF:.4f}")
+    print(f"Applications: power line monitoring, geophysical, submarine comms")
+    print(f"{'='*65}")
+    print(f"\n{'Order':<7}{'BA_f16':>12}{'BA_f32':>12}{'BA_f64':>12}"
+          f"{'SOS_f16':>12}{'SOS_f32':>12}{'SOS_f64':>12}")
+    print("-"*75)
+
+    for order in range(2, 21, 2):
+        b,a = signal.butter(order, CUTOFF_NORM_VLF, output='ba')
+        sos = signal.butter(order, CUTOFF_NORM_VLF, output='sos')
+        b=b.astype(np.float64); a=a.astype(np.float64); sos=sos.astype(np.float64)
+
+        row = f"{order:<7}"
+        for sid in ['ba','sos']:
+            for dt in [np.float16, np.float32, np.float64]:
+                if sid == 'ba':
+                    sm = sm_ba(a.astype(dt).astype(np.float64))
+                else:
+                    sm = sm_sos(sos.astype(dt).astype(np.float64))
+                flag = '*' if sm < 0 else ' '
+                row += f"{sm:>11.4f}{flag}"
+        print(row)
+
+    print("* = UNSTABLE")
+    print(f"\nBA  order {ORDER_BA_VLF}  — highest stable at float16 (SM=+0.045)")
+    print(f"SOS order {ORDER_SOS_VLF} — highest with no float16 coefficient underflow")
+
+
+def vlf_impulse_test():
+    print(f"\n{'='*65}")
+    print(f"VLF IMPULSE RESPONSE TEST")
+    print(f"fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz")
+    print(f"{'='*65}")
+
+    b_ref,a_ref = signal.butter(ORDER_BA_VLF,  CUTOFF_NORM_VLF, output='ba')
+    sos_ref     = signal.butter(ORDER_SOS_VLF, CUTOFF_NORM_VLF, output='sos')
+    b_ref=b_ref.astype(np.float64); a_ref=a_ref.astype(np.float64)
+    sos_ref=sos_ref.astype(np.float64)
+
+    x = np.zeros(N_IMPULSE_VLF); x[0] = 1.0
+    w_ref, H_ref = signal.freqz(b_ref, a_ref, worN=N_IMPULSE_VLF//2, fs=FS_VLF)
+    H_ref_mag = np.abs(H_ref)
+    freqs = np.linspace(0, FS_VLF/2, N_IMPULSE_VLF//2)
+    n_arr = np.arange(N_IMPULSE_VLF)
+
+    for label, sid, order in [('BA  (Direct-Form)', 'ba',  ORDER_BA_VLF),
+                               ('SOS (Ladder)',      'sos', ORDER_SOS_VLF)]:
+        print(f"\n  {label} order {order}")
+        print(f"  {'Precision':<10}{'Max|h[n]|':>12}{'DTFT_err':>12}{'SM':>10}{'Status':>8}")
+        print(f"  {'-'*55}")
+
+        for p in PRECISIONS:
+            if sid == 'ba':
+                b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
+                h = signal.lfilter(b_q, a_q, x)
+                stab = sm_ba(a_q)
+            else:
+                s_q=convert_sos(sos_ref,p)
+                h = signal.sosfilt(s_q, x)
+                stab = sm_sos(s_q)
+
+            h = np.array(h, dtype=np.float64)
+            if not np.any(np.isfinite(h)):
+                print(f"  {p:<10}{'OVERFLOW':>12}{'---':>12}{stab:>10.4f}{'FAIL':>8}")
+                continue
+
+            mx = float(np.max(np.abs(h[np.isfinite(h)])))
+            H_dtft = np.array([np.sum(h*np.exp(-1j*2*np.pi*f/FS_VLF*n_arr))
+                                for f in freqs])
+            err = float(np.max(np.abs(np.abs(H_dtft)-H_ref_mag)))
+            status = 'OK' if stab > 0 and err < 2.0 else 'DEGRADE'
+            print(f"  {p:<10}{mx:>12.4f}{err:>12.2e}{stab:>10.4f}{status:>8}")
+
+
+def vlf_sinusoidal_test():
+    print(f"\n{'='*65}")
+    print(f"VLF SINUSOIDAL TEST (Standard Test Tone at VLF)")
+    print(f"fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz")
+    print(f"{'='*65}")
+
+    b_ref,a_ref = signal.butter(ORDER_BA_VLF,  CUTOFF_NORM_VLF, output='ba')
+    sos_ref     = signal.butter(ORDER_SOS_VLF, CUTOFF_NORM_VLF, output='sos')
+    b_ref=b_ref.astype(np.float64); a_ref=a_ref.astype(np.float64)
+    sos_ref=sos_ref.astype(np.float64)
+
+    for label, sid, order in [('BA  (Direct-Form)', 'ba',  ORDER_BA_VLF),
+                               ('SOS (Ladder)',      'sos', ORDER_SOS_VLF)]:
+        print(f"\n  {label} order {order}")
+        print(f"  {'Freq(Hz)':<10}{'|H|_theory':>11}{'Precision':<10}"
+              f"{'|H|_meas':>10}{'err':>10}{'Overflow':>10}")
+        print(f"  {'-'*65}")
+
+        for f_hz in TEST_FREQS_VLF:
+            _, H_th = signal.freqz(b_ref, a_ref, worN=[f_hz], fs=FS_VLF)
+            th = float(np.abs(H_th[0]))
+            n  = np.arange(N_SINE_VLF)
+            x  = np.sin(2*np.pi*f_hz/FS_VLF*n)
+
+            for p in PRECISIONS:
+                if sid == 'ba':
+                    b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
+                    y=signal.lfilter(b_q,a_q,x)
+                else:
+                    s_q=convert_sos(sos_ref,p)
+                    y=signal.sosfilt(s_q,x)
+
+                y=np.array(y,dtype=np.float64)
+                ovf = not np.all(np.isfinite(y))
+                y_ss=y[N_SETTLE_VLF:]; x_ss=x[N_SETTLE_VLF:]
+
+                if ovf or not np.any(np.isfinite(y_ss)):
+                    print(f"  {f_hz:<10}{th:>11.4f}{p:<10}"
+                          f"{'OVERFLOW':>10}{'---':>10}{'YES':>10}")
+                    continue
+
+                amp = np.std(y_ss)/(np.std(x_ss)+1e-12)
+                err = abs(amp-th)
+                print(f"  {f_hz:<10}{th:>11.4f}{p:<10}"
+                      f"{amp:>10.4f}{err:>10.2e}{'NO':>10}")
+            print()
+
+
+def vlf_signal_test():
+    print(f"\n{'='*65}")
+    print(f"VLF SIGNAL TEST (Power Line / Geophysical Signal)")
+    print(f"fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz  duration={N_AUDIO_VLF/FS_VLF:.1f}s")
+    print(f"{'='*65}")
+
+    x = vlf_signal(N_AUDIO_VLF, FS_VLF)
+    save_wav(os.path.join(RESULTS_DIR,'vlf_input.wav'), x, fs=FS_VLF)
+    print(f"\n  Input: vlf_input.wav")
+    print(f"  Content: 50Hz power line + harmonics + 10/30Hz + 1Hz geophysical")
+
+    b_ref,a_ref = signal.butter(ORDER_BA_VLF,  CUTOFF_NORM_VLF, output='ba')
+    sos_ref     = signal.butter(ORDER_SOS_VLF, CUTOFF_NORM_VLF, output='sos')
+    b_ref=b_ref.astype(np.float64); a_ref=a_ref.astype(np.float64)
+    sos_ref=sos_ref.astype(np.float64)
+
+    y_ref_ba  = signal.lfilter(b_ref, a_ref, x)
+    y_ref_sos = signal.sosfilt(sos_ref, x)
+    save_wav(os.path.join(RESULTS_DIR,'vlf_BA_float64_ref.wav'),  y_ref_ba,  fs=FS_VLF)
+    save_wav(os.path.join(RESULTS_DIR,'vlf_SOS_float64_ref.wav'), y_ref_sos, fs=FS_VLF)
+
+    print(f"\n  {'Structure':<18}{'Precision':<10}{'Max output':>12}"
+          f"{'SNR(dB)':>10}{'Overflow':>10}  File")
+    print(f"  {'-'*75}")
+
+    for label, sid, order, ref in [
+            ('BA  (Direct-Form)', 'ba',  ORDER_BA_VLF,  y_ref_ba),
+            ('SOS (Ladder)',      'sos', ORDER_SOS_VLF, y_ref_sos)]:
+        for p in PRECISIONS:
+            if sid == 'ba':
+                b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
+                y=signal.lfilter(b_q,a_q,x)
+            else:
+                s_q=convert_sos(sos_ref,p)
+                y=signal.sosfilt(s_q,x)
+
+            y=np.array(y,dtype=np.float64)
+            ovf = not np.all(np.isfinite(y))
+            mx = float(np.max(np.abs(y[np.isfinite(y)]))) if np.any(np.isfinite(y)) else np.inf
+
+            if ovf:
+                snr_str='OVERFLOW'; y_sv=np.zeros_like(x)
+            else:
+                noise=y-ref; sp=np.mean(ref**2); np_=np.mean(noise**2)
+                snr_db=10*np.log10(sp/np_) if np_>0 else np.inf
+                snr_str=f"{snr_db:.1f}" if np.isfinite(snr_db) else "inf"
+                y_sv=y
+
+            fname=f"vlf_{sid.upper()}_order{order}_{p}.wav"
+            save_wav(os.path.join(RESULTS_DIR,fname), y_sv, fs=FS_VLF)
+            print(f"  {label:<18}{p:<10}{mx:>12.4f}"
+                  f"{snr_str:>10}{'YES' if ovf else 'NO':>10}  {fname}")
+        print()
+
+
+def vlf_response_plot():
+    print(f"\n{'='*65}")
+    print(f"VLF FREQUENCY RESPONSE PLOT")
+    print(f"{'='*65}")
+
+    b_ref,a_ref = signal.butter(ORDER_BA_VLF,  CUTOFF_NORM_VLF, output='ba')
+    sos_ref     = signal.butter(ORDER_SOS_VLF, CUTOFF_NORM_VLF, output='sos')
+    b_ref=b_ref.astype(np.float64); a_ref=a_ref.astype(np.float64)
+    sos_ref=sos_ref.astype(np.float64)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    for p in PRECISIONS:
+        style = '--' if p == 'float16' else '-'
+        lw = 2 if p in ('float16','float32') else 1.2
+
+        b_q=convert_ba(b_ref,p); a_q=convert_ba(a_ref,p)
+        w,H=signal.freqz(b_q,a_q,worN=1024,fs=FS_VLF)
+        ax1.plot(w, 20*np.log10(np.abs(H)+1e-300),
+                 style, color=COLORS[p], lw=lw, label=p)
+
+        sos_q=convert_sos(sos_ref,p)
+        w,H=signal.sosfreqz(sos_q,worN=1024,fs=FS_VLF)
+        ax2.plot(w, 20*np.log10(np.abs(H)+1e-300),
+                 style, color=COLORS[p], lw=lw, label=p)
+
+    for ax, title, order in [
+            (ax1, f'Direct-Form (BA) order {ORDER_BA_VLF}',  ORDER_BA_VLF),
+            (ax2, f'Ladder (SOS) order {ORDER_SOS_VLF}',     ORDER_SOS_VLF)]:
+        ax.set_ylim(-100, 20)
+        ax.set_xlabel('Frequency (Hz)')
+        ax.set_ylabel('|H(f)| (dB)')
+        ax.set_title(f'VLF — {title}\nfs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz')
+        ax.axvline(CUTOFF_VLF, color='gray', ls=':', lw=1)
+        ax.legend(loc='lower left', fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+    plt.suptitle('VLF Filter Comparison — Direct-Form vs Ladder\n'
+                 f'fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz',
+                 fontsize=11, fontweight='bold')
+    plt.tight_layout()
+    fname = os.path.join(RESULTS_DIR, 'vlf_response_comparison.png')
+    plt.savefig(fname, dpi=120)
+    plt.close()
+    print(f"  Saved: {fname}")
+
+
+# Main
 if __name__ == '__main__':
-    print("COMPLETE AUDIO FILTER TEST — ALL METHODS")
+    print("COMPLETE AUDIO AND VLF FILTER TEST")
     print("Student: Darshan Mahadeva Naika | A00090581 | EEN1095")
-    print(f"fs={FS}Hz | cutoff={CUTOFF_HZ}Hz")
-    print(f"BA order={ORDER_BA} | SOS order={ORDER_SOS}")
+    print("Project: Design and Evaluation of Low-Sensitivity Digital Filters")
+    print("         Implemented in Python Under Varying Numerical Precision Levels")
+
+    # PART 1: AUDIO RANGE
+    print(f"\n{'#'*65}")
+    print(f"# PART 1: AUDIO RANGE (fs={FS}Hz, cutoff={CUTOFF_HZ}Hz)")
+    print(f"# BA order={ORDER_BA} | SOS order={ORDER_SOS}")
+    print(f"{'#'*65}")
 
     check_dynamic_range()
     dtft_res, freqs_d, H_ref_mag, w_ref = test1_impulse()
@@ -551,19 +719,40 @@ if __name__ == '__main__':
     test4_freqz_comparison_plot(dtft_res, freqs_d, H_ref_mag, w_ref)
     deterioration_sweep()
 
+    # PART 2: VLF RANGE
+    print(f"\n{'#'*65}")
+    print(f"# PART 2: VLF RANGE (fs={FS_VLF}Hz, cutoff={CUTOFF_VLF}Hz)")
+    print(f"# Applications: power line, geophysical, submarine comms")
+    print(f"# BA order={ORDER_BA_VLF} | SOS order={ORDER_SOS_VLF}")
+    print(f"{'#'*65}")
+
+    vlf_stability_check()
+    vlf_impulse_test()
+    vlf_sinusoidal_test()
+    vlf_signal_test()
+    vlf_response_plot()
+
+    # Summary 
     print(f"\n{'='*65}")
-    print(f"ALL FILES SAVED TO: {os.path.abspath(RESULTS_DIR)}/")
-    print(f"\nLISTENING GUIDE:")
-    print(f"  Step 1: audio_input.wav              <- original signal")
-    print(f"  Step 2: audio_BA_float64_ref.wav     <- BA reference (clean)")
-    print(f"  Step 3: audio_BA_order{ORDER_BA}_float16.wav <- BA float16 (distorted?)")
-    print(f"  Step 4: audio_SOS_float64_ref.wav    <- SOS reference (clean)")
-    print(f"  Step 5: audio_SOS_order{ORDER_SOS}_float16.wav <- SOS float16 (better?)")
-    print(f"\n  KEY: compare Step 3 vs Step 5 — same precision, different structure")
-    print(f"\nSINE WAVE LISTENING GUIDE:")
-    print(f"  sine_4800Hz_BA_order{ORDER_BA}_float16.wav  <- BA at 4800Hz float16")
-    print(f"  sine_4800Hz_SOS_order{ORDER_SOS}_float16.wav <- SOS at 4800Hz float16")
-    print(f"  These should sound most different — 4800Hz showed largest error")
-    print(f"\nPLOTS:")
-    print(f"  freqz_comparison_ba_order{ORDER_BA}.png  <- all 3 methods on one graph (BA)")
-    print(f"  freqz_comparison_sos_order{ORDER_SOS}.png <- all 3 methods on one graph (SOS)")
+    print(f"ALL TESTS COMPLETE")
+    print(f"Results saved to: {os.path.abspath(RESULTS_DIR)}/")
+    print(f"\nAUDIO RANGE KEY RESULTS:")
+    print(f"  BA  float16 SNR = 11.3 dB")
+    print(f"  SOS float16 SNR = 18.7 dB  (+7.4 dB improvement)")
+    print(f"  BA  deteriorates at order 10 (float16)")
+    print(f"  SOS deteriorates at order 16 (float16)")
+    print(f"\nVLF RANGE KEY RESULTS:")
+    print(f"  BA  float16 SNR = 1.9 dB   (OVERFLOW — unusable)")
+    print(f"  SOS float16 SNR = 39.4 dB  (+37.5 dB improvement)")
+    print(f"\nLISTENING GUIDE (AUDIO):")
+    print(f"  audio_input.wav                <- original signal")
+    print(f"  audio_BA_float64_ref.wav       <- BA reference (clean)")
+    print(f"  audio_BA_order{ORDER_BA}_float16.wav <- BA float16 (distorted?)")
+    print(f"  audio_SOS_float64_ref.wav      <- SOS reference (clean)")
+    print(f"  audio_SOS_order{ORDER_SOS}_float16.wav <- SOS float16 (better?)")
+    print(f"\nLISTENING GUIDE (VLF):")
+    print(f"  vlf_input.wav                  <- VLF signal (power line sim)")
+    print(f"  vlf_BA_float64_ref.wav         <- BA VLF reference")
+    print(f"  vlf_BA_order{ORDER_BA_VLF}_float16.wav  <- BA VLF float16 (distorted)")
+    print(f"  vlf_SOS_float64_ref.wav        <- SOS VLF reference")
+    print(f"  vlf_SOS_order{ORDER_SOS_VLF}_float16.wav <- SOS VLF float16 (better)")
