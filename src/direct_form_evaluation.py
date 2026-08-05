@@ -241,11 +241,31 @@ def run_direct_form_evaluation():
                     row += f"{'ERROR':<12}"
             print(row)
 
+    # KEY FINDING — dynamically computed from actual results
+    unstable_cases = []
+    for ftype in FILTER_TYPES:
+        for order in ORDERS:
+            if order not in results[ftype]:
+                continue
+            for prec in PRECISIONS:
+                if prec in results[ftype][order]:
+                    if not results[ftype][order][prec]['stable']:
+                        unstable_cases.append((ftype, order, prec,
+                                               results[ftype][order][prec]['sm']))
+
     print(f"\n{'=' * 80}")
-    print("KEY FINDING:")
-    print("Direct-Form filters become UNSTABLE at low precision (float16)")
-    print("for high-order designs (order 20+). This confirms the sensitivity")
-    print("problem that Ladder and WDF structures are designed to solve.")
+    print("KEY FINDING (dynamically computed):")
+    if unstable_cases:
+        print(f"Found {len(unstable_cases)} UNSTABLE configurations:")
+        for ftype, order, prec, sm in unstable_cases:
+            print(f"  {ftype.upper():<10} order {order:<4} {prec:<10} SM={sm:+.4f}")
+        min_order_unstable = min(o for _,o,_,_ in unstable_cases)
+        precisions_affected = list(dict.fromkeys(pr for _,_,pr,_ in unstable_cases))
+        print(f"\nDirect-Form filters become UNSTABLE from order {min_order_unstable} onwards")
+        print(f"at precision levels: {', '.join(precisions_affected)}")
+        print("This confirms the sensitivity problem that Ladder structures are designed to solve.")
+    else:
+        print("All configurations STABLE at the tested orders and precisions.")
     print(f"{'=' * 80}")
 
     return results

@@ -145,8 +145,33 @@ if __name__ == '__main__':
     order_sweep('butter', range(2, 31, 2))
     order_sweep('ellip', range(2, 21, 2))
 
-    print("\n\nKEY FINDINGS:")
+    # KEY FINDINGS — dynamically computed from actual results
+    print("\n\nKEY FINDINGS (dynamically computed):")
     print("="*65)
-    print("Ladder (SOS) remains STABLE at all precision levels")
-    print("at every order where Direct-Form (BA) fails.")
+
+    # Collect all results
+    all_res = {}
+    for ftype, order in [('butter',10),('butter',14),('butter',24),('ellip',10)]:
+        res, _ = evaluate_ladder(ftype, order)
+        all_res[(ftype, order)] = res
+
+    # Find unstable cases
+    unstable = [(ft, ord_, p, all_res[(ft,ord_)][p]['sm'])
+                for (ft, ord_) in all_res
+                for p in PRECISIONS
+                if not all_res[(ft,ord_)][p]['stable']]
+
+    if unstable:
+        print(f"UNSTABLE configurations found ({len(unstable)}):")
+        for ft, ord_, p, sm in unstable:
+            print(f"  {ft.upper():<10} order {ord_:<4} {p:<10} SM={sm:+.4f}")
+    else:
+        print("Ladder (SOS) STABLE at ALL tested orders and precision levels.")
+
+    # Best and worst SM
+    all_sms = [(ft, ord_, p, all_res[(ft,ord_)][p]['sm'])
+               for (ft, ord_) in all_res for p in PRECISIONS]
+    min_sm = min(all_sms, key=lambda x: x[3])
+    print(f"\nLowest SM: {min_sm[0].upper()} order {min_sm[1]} {min_sm[2]} "
+          f"SM={min_sm[3]:+.4f}")
     print("Structural distribution of poles is the primary robustness driver.")

@@ -202,9 +202,12 @@ def run_all_experiments(save_results=True):
                 return bool(obj)
             raise TypeError(f"Object of type {type(obj)} not JSON serializable")
 
-        with open('/home/claude/filter_framework/results.json', 'w') as f:
+        results_dir = os.path.join('..', 'results')
+        os.makedirs(results_dir, exist_ok=True)
+        results_path = os.path.join(results_dir, 'results.json')
+        with open(results_path, 'w') as f:
             json.dump(all_results, f, indent=2, default=convert_for_json)
-        print("\nResults saved to results.json")
+        print(f"\nResults saved to {results_path}")
 
     return all_results
 

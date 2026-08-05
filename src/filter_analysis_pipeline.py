@@ -88,17 +88,20 @@ def print_summary(results):
 
     print(f"\n  {passed}/9 steps completed successfully")
 
-    if passed == 9:
-        print("\n  ALL STEPS COMPLETE")
+    total_steps = len(steps)
+    if passed == total_steps:
+        print(f"\n  ALL {total_steps} STEPS COMPLETE")
         print("  Results saved to ../results/")
-        print("\n  Key findings:")
-        print("  - Direct-Form unstable at float16 order 14, float32 order 24")
-        print("  - Ladder (SOS) stable at ALL orders and ALL precisions")
-        print("  - Audio SNR: BA float16=11.3dB vs SOS float16=18.7dB")
-        print("  - Ladder 24x-33000x more accurate than Parallel Form (Bank 2018)")
-        print("  - Structure is the primary robustness driver, not precision")
+        print("\n  See individual step outputs above for all key findings.")
+        results_dir = os.path.join('..', 'results')
+        if os.path.exists(results_dir):
+            png_files = [f for f in os.listdir(results_dir) if f.endswith('.png')]
+            wav_files = [f for f in os.listdir(results_dir) if f.endswith('.wav')]
+            print(f"    {len(png_files)} plot(s) saved to {results_dir}/")
+            print(f"    {len(wav_files)} audio file(s) saved to {results_dir}/")
     else:
-        print("\n  Some steps failed. Check output above for details.")
+        failed = total_steps - passed
+        print(f"\n  {failed} step(s) failed. Check output above for details.")
 
 
 # Main pipeline

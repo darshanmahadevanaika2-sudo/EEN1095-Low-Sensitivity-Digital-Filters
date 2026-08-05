@@ -732,18 +732,89 @@ if __name__ == '__main__':
     vlf_signal_test()
     vlf_response_plot()
 
-    # Summary 
+    # Summary — dynamically compute key SNR values and deterioration points
+    # Audio range SNR
+    x_audio = speech_signal(N_AUDIO, FS)
+    b_ref_a, a_ref_a = signal.butter(ORDER_BA,  CUTOFF_NORM, output='ba')
+    sos_ref_a        = signal.butter(ORDER_SOS, CUTOFF_NORM, output='sos')
+    b_ref_a=b_ref_a.astype(np.float64); a_ref_a=a_ref_a.astype(np.float64)
+    sos_ref_a=sos_ref_a.astype(np.float64)
+    y_ref_ba_a  = signal.lfilter(b_ref_a, a_ref_a, x_audio)
+    y_ref_sos_a = signal.sosfilt(sos_ref_a, x_audio)
+
+    def calc_snr(y, ref):
+        y64 = np.array(y, dtype=np.float64)
+        if not np.all(np.isfinite(y64)): return None
+        noise = y64 - ref
+        sp = np.mean(ref**2); np_ = np.mean(noise**2)
+        return 10*np.log10(sp/np_) if np_ > 0 else np.inf
+
+    ba_f16_a  = signal.lfilter(convert_ba(b_ref_a,'float16'), convert_ba(a_ref_a,'float16'), x_audio)
+    sos_f16_a = signal.sosfilt(convert_sos(sos_ref_a,'float16'), x_audio)
+    snr_ba_f16_audio  = calc_snr(ba_f16_a,  y_ref_ba_a)
+    snr_sos_f16_audio = calc_snr(sos_f16_a, y_ref_sos_a)
+
+    # VLF range SNR
+    x_vlf = vlf_signal(N_AUDIO_VLF, FS_VLF)
+    b_ref_v, a_ref_v = signal.butter(ORDER_BA_VLF,  CUTOFF_NORM_VLF, output='ba')
+    sos_ref_v        = signal.butter(ORDER_SOS_VLF, CUTOFF_NORM_VLF, output='sos')
+    b_ref_v=b_ref_v.astype(np.float64); a_ref_v=a_ref_v.astype(np.float64)
+    sos_ref_v=sos_ref_v.astype(np.float64)
+    y_ref_ba_v  = signal.lfilter(b_ref_v, a_ref_v, x_vlf)
+    y_ref_sos_v = signal.sosfilt(sos_ref_v, x_vlf)
+
+    ba_f16_v  = signal.lfilter(convert_ba(b_ref_v,'float16'), convert_ba(a_ref_v,'float16'), x_vlf)
+    sos_f16_v = signal.sosfilt(convert_sos(sos_ref_v,'float16'), x_vlf)
+    snr_ba_f16_vlf  = calc_snr(ba_f16_v,  y_ref_ba_v)
+    snr_sos_f16_vlf = calc_snr(sos_f16_v, y_ref_sos_v)
+
+    # Deterioration points — find order where SNR drops below 40 dB
+    x_det = speech_signal(FS*2, FS)
+    SNR_THRESHOLD = 40.0
+    ba_degrade_order  = None
+    sos_degrade_order = None
+    for order in range(2, 23, 2):
+        b_d,a_d = signal.butter(order, CUTOFF_NORM, output='ba')
+        sos_d   = signal.butter(order, CUTOFF_NORM, output='sos')
+        b_d=b_d.astype(np.float64); a_d=a_d.astype(np.float64); sos_d=sos_d.astype(np.float64)
+        ref_ba_d  = signal.lfilter(b_d, a_d, x_det)
+        ref_sos_d = signal.sosfilt(sos_d, x_det)
+        if ba_degrade_order is None:
+            y_ba_d = signal.lfilter(b_d.astype(np.float16).astype(np.float64),
+                                     a_d.astype(np.float16).astype(np.float64), x_det)
+            snr_d = calc_snr(y_ba_d, ref_ba_d)
+            if snr_d is None or snr_d < SNR_THRESHOLD:
+                ba_degrade_order = order
+        if sos_degrade_order is None:
+            y_sos_d = signal.sosfilt(sos_d.astype(np.float16).astype(np.float64), x_det)
+            snr_d2 = calc_snr(y_sos_d, ref_sos_d)
+            if snr_d2 is None or snr_d2 < SNR_THRESHOLD:
+                sos_degrade_order = order
+
+    # Format SNR strings dynamically
+    def fmt_snr(snr):
+        if snr is None: return "OVERFLOW"
+        return f"{snr:.1f} dB"
+
+    audio_improvement = (snr_sos_f16_audio - snr_ba_f16_audio) \
+                        if snr_ba_f16_audio is not None and snr_sos_f16_audio is not None else None
+    vlf_improvement   = (snr_sos_f16_vlf - snr_ba_f16_vlf) \
+                        if snr_ba_f16_vlf is not None and snr_sos_f16_vlf is not None else None
+
     print(f"\n{'='*65}")
     print(f"ALL TESTS COMPLETE")
     print(f"Results saved to: {os.path.abspath(RESULTS_DIR)}/")
-    print(f"\nAUDIO RANGE KEY RESULTS:")
-    print(f"  BA  float16 SNR = 11.3 dB")
-    print(f"  SOS float16 SNR = 18.7 dB  (+7.4 dB improvement)")
-    print(f"  BA  deteriorates at order 10 (float16)")
-    print(f"  SOS deteriorates at order 16 (float16)")
-    print(f"\nVLF RANGE KEY RESULTS:")
-    print(f"  BA  float16 SNR = 1.9 dB   (OVERFLOW — unusable)")
-    print(f"  SOS float16 SNR = 39.4 dB  (+37.5 dB improvement)")
+    print(f"\nAUDIO RANGE KEY RESULTS (dynamically computed):")
+    print(f"  BA  float16 SNR = {fmt_snr(snr_ba_f16_audio)}")
+    print(f"  SOS float16 SNR = {fmt_snr(snr_sos_f16_audio)}"
+          + (f"  (+{audio_improvement:.1f} dB improvement)" if audio_improvement else ""))
+    print(f"  BA  deteriorates at order {ba_degrade_order}  (float16, SNR < {SNR_THRESHOLD} dB)")
+    print(f"  SOS deteriorates at order {sos_degrade_order} (float16, SNR < {SNR_THRESHOLD} dB)")
+    print(f"\nVLF RANGE KEY RESULTS (dynamically computed):")
+    print(f"  BA  float16 SNR = {fmt_snr(snr_ba_f16_vlf)}"
+          + ("  (OVERFLOW — unusable)" if snr_ba_f16_vlf is None else ""))
+    print(f"  SOS float16 SNR = {fmt_snr(snr_sos_f16_vlf)}"
+          + (f"  (+{vlf_improvement:.1f} dB improvement)" if vlf_improvement else ""))
     print(f"\nLISTENING GUIDE (AUDIO):")
     print(f"  audio_input.wav                <- original signal")
     print(f"  audio_BA_float64_ref.wav       <- BA reference (clean)")

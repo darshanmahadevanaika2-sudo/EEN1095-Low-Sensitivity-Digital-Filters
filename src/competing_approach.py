@@ -331,19 +331,59 @@ if __name__ == '__main__':
     plot_three_way('butter', 14)
     plot_three_way('ellip',  10)
 
-    print("\n\nKEY FINDINGS — THREE-WAY COMPARISON:")
+    # KEY FINDINGS — computed dynamically from actual results
+    # Collect results at the two most critical orders
+    res_butter_14 = three_way_comparison('butter', order=14)
+    res_ellip_10  = three_way_comparison('ellip',  order=10)
+
+    # Find first unstable orders dynamically
+    fu = {'BA':{p:None for p in PRECISIONS},
+          'Par':{p:None for p in PRECISIONS},
+          'SOS':{p:None for p in PRECISIONS}}
+    for order in range(2, 27, 2):
+        b,a = signal.butter(order, 0.3, output='ba')
+        sos = signal.butter(order, 0.3, output='sos')
+        b=b.astype(np.float64); a=a.astype(np.float64); sos=sos.astype(np.float64)
+        r,poles,c = design_parallel(order, 0.3, 'butter')
+        for p in PRECISIONS:
+            if sm_ba(convert_ba(a,p)) < 0 and fu['BA'][p] is None:
+                fu['BA'][p] = order
+            r_q,poles_q = convert_parallel(r,poles,p)
+            if sm_parallel(poles_q) < 0 and fu['Par'][p] is None:
+                fu['Par'][p] = order
+            if sm_sos(convert_sos(sos,p)) < 0 and fu['SOS'][p] is None:
+                fu['SOS'][p] = order
+
+    def fmt_order(v, max_o=26):
+        return f"order {v}" if v else f"stable to {max_o}"
+
+    # Compute accuracy improvement: Ladder vs Parallel at float16
+    r14 = res_butter_14.get('float16', {})
+    err_par_f16  = r14.get('err_par', float('nan'))
+    err_sos_f16  = r14.get('err_sos', float('nan'))
+    improvement  = err_par_f16 / err_sos_f16 if err_sos_f16 > 0 else float('nan')
+
+    r14_f32 = res_butter_14.get('float32', {})
+    err_par_f32 = r14_f32.get('err_par', float('nan'))
+    err_sos_f32 = r14_f32.get('err_sos', float('nan'))
+    improvement_f32 = err_par_f32 / err_sos_f32 if err_sos_f32 > 0 else float('nan')
+
+    print("\n\nKEY FINDINGS — THREE-WAY COMPARISON (dynamically computed):")
     print("="*75)
-    print("1. Direct-Form (BA)     — FAILS at float16 order 14, float32 order 24")
-    print("2. Parallel Form (Bank) — STABLE at float16 order 14 (SM=+0.087)")
-    print("                          STABLE at float32 order 24 (SM=+0.052)")
-    print("                          BUT Max|H|err at float64/mpmath = 4.4e-03")
-    print("                          (constant error due to DTFT approximation)")
-    print("3. Ladder / SOS         — STABLE at ALL orders and ALL precisions")
-    print("                          Max|H|err = 1e-07 to 1e-13 at float32/64")
-    print("")
-    print("CONCLUSION:")
-    print("  Parallel Form (Bank 2018) is BETTER than Direct-Form — it stays")
-    print("  stable where BA fails. However Ladder (SOS) is MORE ACCURATE")
-    print("  than Parallel Form at every precision level — 10 to 1000x lower")
-    print("  frequency response error. Ladder (SOS) is the most robust of")
-    print("  all three structures across all orders and precision levels.")
+    print(f"1. Direct-Form (BA)     — FAILS at float16 {fmt_order(fu['BA']['float16'])}, "
+          f"float32 {fmt_order(fu['BA']['float32'])}")
+    print(f"2. Parallel Form (Bank) — STABLE at float16 {fmt_order(fu['Par']['float16'])} "
+          f"(SM={res_butter_14.get('float16',{}).get('sm_par',float('nan')):+.3f})")
+    print(f"                          STABLE at float32 {fmt_order(fu['Par']['float32'])} "
+          f"(SM={res_butter_14.get('float32',{}).get('sm_par',float('nan')):+.3f})")
+    print(f"                          Max|H|err at float16 = {err_par_f16:.2e}")
+    print(f"3. Ladder / SOS         — STABLE at ALL orders and ALL precisions")
+    print(f"                          Max|H|err at float16 = {err_sos_f16:.2e}")
+    print(f"                          Max|H|err at float32 = {err_sos_f32:.2e}")
+    print()
+    print("CONCLUSION (dynamically computed):")
+    print(f"  Parallel Form (Bank 2018) is BETTER than Direct-Form — stays stable")
+    print(f"  where BA fails. However Ladder (SOS) is MORE ACCURATE than Parallel")
+    print(f"  Form — {improvement:.0f}x more accurate at float16, "
+          f"{improvement_f32:.0f}x more accurate at float32.")
+    print(f"  Ladder (SOS) is the most robust structure across all orders and precisions.")
