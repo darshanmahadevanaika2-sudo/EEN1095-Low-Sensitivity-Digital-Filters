@@ -1,4 +1,11 @@
 """
+filter_analysis_pipeline.py — Complete Project Pipeline Runner
+
+Usage:
+    python filter_analysis_pipeline.py              # Run everything
+    python filter_analysis_pipeline.py --step 1     # Run only step 1
+    python filter_analysis_pipeline.py --from 4     # Run from step 4 onwards
+
 Steps:
     1. Direct-Form IIR baseline evaluation
     2. Signal validation (impulse vs sine vs freqz)
@@ -16,17 +23,26 @@ import os
 import time
 import argparse
 
-# Helpers
+# ── Path setup ────────────────────────────────────────────────────────────────
+# Pipeline lives in src/ — testing files are in ../testing/
+TESTING_DIR = os.path.join('..', 'tests')
+RESULTS_DIR = os.path.join('..', 'results')
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def run_step(step_num, name, filename):
-    """Run a single pipeline step."""
+    """Run a single pipeline step from the testing/ folder."""
     print(f"\n{'='*65}")
     print(f"STEP {step_num}: {name}")
-    print(f"File: src/{filename}")
+    print(f"File: testing/{os.path.basename(filename)}")
     print(f"{'='*65}")
     start = time.time()
 
+    if not os.path.exists(filename):
+        print(f"\n  Step {step_num} SKIPPED — file not found: {filename}")
+        return False
+
     try:
-        # Execute the script
         with open(filename, 'r') as f:
             code = f.read()
         exec(compile(code, filename, 'exec'), {'__name__': '__main__'})
@@ -46,6 +62,11 @@ def print_header():
     print("Supervisor: Martin Collier")
     print("="*65)
     print()
+    print("Repository structure:")
+    print("  src/      — core framework (filter_design, metrics, experiment)")
+    print("  tests/  — all test and evaluation files")
+    print("  results/  — all output plots and audio files")
+    print()
     print("This script runs the complete project in sequence:")
     print()
     print("  Step 1 — Direct-Form IIR baseline evaluation")
@@ -63,48 +84,35 @@ def print_header():
     print("="*65)
 
 
-def print_summary(results):
+def print_summary(results, steps):
     print(f"\n{'='*65}")
     print("PIPELINE SUMMARY")
     print(f"{'='*65}")
 
-    steps = [
-        (1, "Direct-Form IIR baseline"),
-        (2, "Signal validation"),
-        (3, "Degradation analysis (Butterworth)"),
-        (4, "Degradation analysis (Elliptic)"),
-        (5, "Response plots"),
-        (6, "Ladder filter evaluation"),
-        (7, "Direct-Form vs Ladder comparison"),
-        (8, "Audio filter test"),
-        (9, "Competing approach comparison"),
-    ]
-
     passed = 0
-    for num, name in steps:
+    for num, name, _ in steps:
         status = "PASS" if results.get(num) else "FAIL"
         if results.get(num): passed += 1
         print(f"  Step {num}: {name:<40} {status}")
 
-    print(f"\n  {passed}/9 steps completed successfully")
-
     total_steps = len(steps)
+    print(f"\n  {passed}/{total_steps} steps completed successfully")
+
     if passed == total_steps:
         print(f"\n  ALL {total_steps} STEPS COMPLETE")
         print("  Results saved to ../results/")
         print("\n  See individual step outputs above for all key findings.")
-        results_dir = os.path.join('..', 'results')
-        if os.path.exists(results_dir):
-            png_files = [f for f in os.listdir(results_dir) if f.endswith('.png')]
-            wav_files = [f for f in os.listdir(results_dir) if f.endswith('.wav')]
-            print(f"    {len(png_files)} plot(s) saved to {results_dir}/")
-            print(f"    {len(wav_files)} audio file(s) saved to {results_dir}/")
+        if os.path.exists(RESULTS_DIR):
+            png_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.png')]
+            wav_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.wav')]
+            print(f"    {len(png_files)} plot(s) saved to {RESULTS_DIR}/")
+            print(f"    {len(wav_files)} audio file(s) saved to {RESULTS_DIR}/")
     else:
         failed = total_steps - passed
         print(f"\n  {failed} step(s) failed. Check output above for details.")
 
 
-# Main pipeline
+# ── Main pipeline ─────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
         description='Run the complete EEN1095 project pipeline')
@@ -116,17 +124,26 @@ def main():
 
     print_header()
 
-    # Define all steps
+    # All test files now live in testing/ folder
     steps = [
-        (1, "Direct-Form IIR Baseline Evaluation",    "direct_form_evaluation.py"),
-        (2, "Signal Validation",                       "signal_validation.py"),
-        (3, "Degradation Analysis — Butterworth",      "degradation_analysis.py"),
-        (4, "Degradation Analysis — Elliptic",         "degradation_analysis_ellip.py"),
-        (5, "Amplitude and Phase Response Plots",      "plot_responses.py"),
-        (6, "Ladder Filter (SOS) Evaluation",          "ladder_filter.py"),
-        (7, "Direct-Form vs Ladder Comparison",        "comparison.py"),
-        (8, "Audio Filter Test",                       "audio_filter_test.py"),
-        (9, "Competing Approach Comparison",           "competing_approach.py"),
+        (1, "Direct-Form IIR Baseline Evaluation",
+             os.path.join(TESTING_DIR, "direct_form_evaluation.py")),
+        (2, "Signal Validation",
+             os.path.join(TESTING_DIR, "signal_validation.py")),
+        (3, "Degradation Analysis — Butterworth",
+             os.path.join(TESTING_DIR, "degradation_analysis.py")),
+        (4, "Degradation Analysis — Elliptic",
+             os.path.join(TESTING_DIR, "degradation_analysis_ellip.py")),
+        (5, "Amplitude and Phase Response Plots",
+             os.path.join(TESTING_DIR, "plot_responses.py")),
+        (6, "Ladder Filter (SOS) Evaluation",
+             os.path.join(TESTING_DIR, "ladder_filter.py")),
+        (7, "Direct-Form vs Ladder Comparison",
+             os.path.join(TESTING_DIR, "comparison.py")),
+        (8, "Audio Filter Test",
+             os.path.join(TESTING_DIR, "audio_filter_test.py")),
+        (9, "Competing Approach Comparison",
+             os.path.join(TESTING_DIR, "competing_approach.py")),
     ]
 
     # Filter steps based on arguments
@@ -146,12 +163,6 @@ def main():
     total_start = time.time()
 
     for step_num, name, filename in steps:
-        # Check file exists
-        if not os.path.exists(filename):
-            print(f"\nSkipping Step {step_num} — {filename} not found")
-            results[step_num] = False
-            continue
-
         success = run_step(step_num, name, filename)
         results[step_num] = success
 
@@ -168,7 +179,7 @@ def main():
 
     total_elapsed = time.time() - total_start
     print(f"\nTotal runtime: {total_elapsed/60:.1f} minutes")
-    print_summary(results)
+    print_summary(results, steps)
 
 
 if __name__ == '__main__':

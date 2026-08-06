@@ -1,17 +1,17 @@
 """
 Three structural approaches to IIR filter implementation:
 
-1. Direct-Form (BA) — baseline, highest sensitivity
+1. Direct-Form (BA) - baseline, highest sensitivity
    H(z) = B(z)/A(z) as one high-order polynomial
    ALL poles coupled to single coefficient set -> high sensitivity
 
-2. Parallel Form (Bank 2018) — competing approach
+2. Parallel Form (Bank 2018) - competing approach
    H(z) = H_1(z) + H_2(z) + ... + H_K(z)  (sum of 2nd order sections)
    Derived via partial fraction expansion of H(z)
    Each section has independent poles -> lower sensitivity than BA
    Bank 2018 showed this improves numerical conditioning over Direct-Form
 
-3. Ladder / SOS (Bruton 1975) — project's main structure
+3. Ladder / SOS (Bruton 1975) - project's main structure
    H(z) = H_1(z) * H_2(z) * ... * H_K(z)  (product of 2nd order sections)
    Each section has isolated poles -> lowest sensitivity
    SciPy explicitly recommends this for high-order IIR numerical accuracy
@@ -42,7 +42,7 @@ COLORS = {'float16': 'tab:red', 'float32': 'tab:orange',
           'float64': 'tab:blue', 'mpmath': 'tab:green'}
 
 
-# ── Precision conversion ──────────────────────────────────────────────────────
+# -- Precision conversion ------------------------------------------------------
 def convert_ba(c, p):
     if p == 'mpmath':
         return np.array([float(mpmath.mpf(str(x))) for x in c], dtype=np.float64)
@@ -65,7 +65,7 @@ def convert_parallel(r, poles, p):
     poles_q = poles.real.astype(dt) + 1j * poles.imag.astype(dt)
     return r_q, poles_q
 
-# ── Stability margins ─────────────────────────────────────────────────────────
+# -- Stability margins ---------------------------------------------------------
 def sm_ba(a):
     try:
         a64 = a.astype(np.float64)
@@ -83,14 +83,14 @@ def sm_sos(sos):
     except: return -999.0
 
 def sm_parallel(poles):
-    """Stability margin for Parallel Form — each pole is independent."""
+    """Stability margin for Parallel Form - each pole is independent."""
     try:
         poles64 = np.array([complex(p) for p in poles])
         if not np.all(np.isfinite(np.abs(poles64))): return -999.0
         return float(1.0 - np.max(np.abs(poles64)))
     except: return -999.0
 
-# ── Parallel Form filter ──────────────────────────────────────────────────────
+# -- Parallel Form filter ------------------------------------------------------
 def design_parallel(order, cutoff, ftype='butter'):
     """
     Design filter in Parallel Form using partial fraction expansion.
@@ -127,7 +127,7 @@ def parallel_freqz(r, poles, c, n_points=1024):
     H = np.array([np.sum(h * np.exp(-1j*w*n_arr)) for w in freqs])
     return freqs / np.pi, H
 
-# ── Three-way comparison ──────────────────────────────────────────────────────
+# -- Three-way comparison ------------------------------------------------------
 def three_way_comparison(ftype='butter', order=10, cutoff=0.3):
     """
     Compare Direct-Form (BA) vs Parallel Form (Bank 2018) vs Ladder (SOS)
@@ -196,14 +196,14 @@ def three_way_comparison(ftype='butter', order=10, cutoff=0.3):
     print("* = UNSTABLE (SM < 0)")
     return results
 
-# ── Order sweep ───────────────────────────────────────────────────────────────
+# -- Order sweep ---------------------------------------------------------------
 def order_sweep_three_way(ftype='butter', orders=range(2,25,2), cutoff=0.3):
     """
-    Sweep filter order — find first unstable order for each structure
+    Sweep filter order - find first unstable order for each structure
     and precision level.
     """
     print(f"\n{'='*75}")
-    print(f"ORDER SWEEP — {ftype.upper()} — First Unstable Order")
+    print(f"ORDER SWEEP - {ftype.upper()} - First Unstable Order")
     print(f"{'='*75}")
 
     first_unstable = {
@@ -246,7 +246,7 @@ def order_sweep_three_way(ftype='butter', orders=range(2,25,2), cutoff=0.3):
               f"{fmt(first_unstable['Par'][p]):>15} "
               f"{fmt(first_unstable['SOS'][p]):>15}")
 
-# ── Comparison plot ───────────────────────────────────────────────────────────
+# -- Comparison plot -----------------------------------------------------------
 def plot_three_way(ftype, order, cutoff=0.3):
     """
     Plot magnitude response for all three structures at all precisions.
@@ -309,7 +309,7 @@ def plot_three_way(ftype, order, cutoff=0.3):
     plt.close()
     print(f"Saved {fname}")
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main ----------------------------------------------------------------------
 if __name__ == '__main__':
     print("COMPETING APPROACH COMPARISON")
     print("Direct-Form (BA) vs Parallel Form (Bank 2018) vs Ladder (SOS)")
@@ -331,7 +331,7 @@ if __name__ == '__main__':
     plot_three_way('butter', 14)
     plot_three_way('ellip',  10)
 
-    # KEY FINDINGS — computed dynamically from actual results
+    # KEY FINDINGS - computed dynamically from actual results
     # Collect results at the two most critical orders
     res_butter_14 = three_way_comparison('butter', order=14)
     res_ellip_10  = three_way_comparison('ellip',  order=10)
@@ -368,22 +368,22 @@ if __name__ == '__main__':
     err_sos_f32 = r14_f32.get('err_sos', float('nan'))
     improvement_f32 = err_par_f32 / err_sos_f32 if err_sos_f32 > 0 else float('nan')
 
-    print("\n\nKEY FINDINGS — THREE-WAY COMPARISON (dynamically computed):")
+    print("\n\nKEY FINDINGS - THREE-WAY COMPARISON (dynamically computed):")
     print("="*75)
-    print(f"1. Direct-Form (BA)     — FAILS at float16 {fmt_order(fu['BA']['float16'])}, "
+    print(f"1. Direct-Form (BA)     - FAILS at float16 {fmt_order(fu['BA']['float16'])}, "
           f"float32 {fmt_order(fu['BA']['float32'])}")
-    print(f"2. Parallel Form (Bank) — STABLE at float16 {fmt_order(fu['Par']['float16'])} "
+    print(f"2. Parallel Form (Bank) - STABLE at float16 {fmt_order(fu['Par']['float16'])} "
           f"(SM={res_butter_14.get('float16',{}).get('sm_par',float('nan')):+.3f})")
     print(f"                          STABLE at float32 {fmt_order(fu['Par']['float32'])} "
           f"(SM={res_butter_14.get('float32',{}).get('sm_par',float('nan')):+.3f})")
     print(f"                          Max|H|err at float16 = {err_par_f16:.2e}")
-    print(f"3. Ladder / SOS         — STABLE at ALL orders and ALL precisions")
+    print(f"3. Ladder / SOS         - STABLE at ALL orders and ALL precisions")
     print(f"                          Max|H|err at float16 = {err_sos_f16:.2e}")
     print(f"                          Max|H|err at float32 = {err_sos_f32:.2e}")
     print()
     print("CONCLUSION (dynamically computed):")
-    print(f"  Parallel Form (Bank 2018) is BETTER than Direct-Form — stays stable")
+    print(f"  Parallel Form (Bank 2018) is BETTER than Direct-Form - stays stable")
     print(f"  where BA fails. However Ladder (SOS) is MORE ACCURATE than Parallel")
-    print(f"  Form — {improvement:.0f}x more accurate at float16, "
+    print(f"  Form - {improvement:.0f}x more accurate at float16, "
           f"{improvement_f32:.0f}x more accurate at float32.")
     print(f"  Ladder (SOS) is the most robust structure across all orders and precisions.")

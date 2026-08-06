@@ -165,7 +165,7 @@ def run_direct_form_evaluation():
     orders, and precision levels.
     """
     print("=" * 80)
-    print("STEP 2: DIRECT-FORM IIR FILTER EVALUATION — ALL 4 PRECISION LEVELS")
+    print("STEP 2: DIRECT-FORM IIR FILTER EVALUATION - ALL 4 PRECISION LEVELS")
     print("Student: Darshan Mahadeva Naika | A00090581 | EEN1095")
     print("=" * 80)
 
@@ -173,12 +173,12 @@ def run_direct_form_evaluation():
 
     for ftype in FILTER_TYPES:
         results[ftype] = {}
-        print(f"\n{'─' * 80}")
+        print(f"\n{'-' * 80}")
         print(f"Filter Type: {ftype.upper()}")
-        print(f"{'─' * 80}")
+        print(f"{'-' * 80}")
         print(f"{'Order':<8} {'Precision':<10} {'Stable':<10} {'SM':>10} "
               f"{'Pole Disp':>12} {'Sens Norm':>12} {'Dev (dB)':>10} {'RO Noise':>12}")
-        print(f"{'─' * 80}")
+        print(f"{'-' * 80}")
 
         for order in ORDERS:
             b_ref, a_ref = design_filter(ftype, order)
@@ -221,11 +221,11 @@ def run_direct_form_evaluation():
 
     # Summary Table
     print(f"\n{'=' * 80}")
-    print("STABILITY SUMMARY — DIRECT-FORM STRUCTURE")
+    print("STABILITY SUMMARY - DIRECT-FORM STRUCTURE")
     print(f"{'=' * 80}")
     print(f"{'Filter':<10} {'Order':<8} {'float16':<12} {'float32':<12} "
           f"{'float64':<12} {'mpmath':<12}")
-    print(f"{'─' * 80}")
+    print(f"{'-' * 80}")
 
     for ftype in FILTER_TYPES:
         for order in ORDERS:
@@ -241,7 +241,7 @@ def run_direct_form_evaluation():
                     row += f"{'ERROR':<12}"
             print(row)
 
-    # KEY FINDING — dynamically computed from actual results
+    # KEY FINDING - dynamically computed from actual results
     unstable_cases = []
     for ftype in FILTER_TYPES:
         for order in ORDERS:

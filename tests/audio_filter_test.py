@@ -106,7 +106,7 @@ def vlf_signal(n_samples, fs):
 
 # Internal Overflow Monitor
 def lfilter_with_overflow_monitor(b, a, x, precision='float64'):
-    """Monitor internal state variables at EVERY sample — track WHERE overflow occurs."""
+    """Monitor internal state variables at EVERY sample - track WHERE overflow occurs."""
     N_samples = len(x)
     order = len(a) - 1
     w = np.zeros(order + 1)
@@ -134,7 +134,7 @@ def lfilter_with_overflow_monitor(b, a, x, precision='float64'):
 
 
 def sosfilt_with_overflow_monitor(sos, x, precision='float64'):
-    """Monitor SOS internal state variables — track which section overflows first."""
+    """Monitor SOS internal state variables - track which section overflows first."""
     N_samples = len(x)
     n_sections = len(sos)
     y = x.copy().astype(np.float64)
@@ -165,11 +165,11 @@ def sosfilt_with_overflow_monitor(sos, x, precision='float64'):
 
     return y, max_state_all, overflow_sample, overflow_section
 
-# PART 1 — AUDIO RANGE TESTS (fs=48000Hz, cutoff=8000Hz)
+# PART 1 - AUDIO RANGE TESTS (fs=48000Hz, cutoff=8000Hz)
 
 def check_dynamic_range():
     print(f"\n{'='*65}")
-    print(f"DYNAMIC RANGE — Coefficient Underflow Analysis (AUDIO)")
+    print(f"DYNAMIC RANGE - Coefficient Underflow Analysis (AUDIO)")
     print(f"float16 min representable: {np.finfo(np.float16).tiny:.2e}")
     print(f"float16 max representable: {np.finfo(np.float16).max:.2e}")
     print(f"{'='*65}")
@@ -248,7 +248,7 @@ def test1_impulse():
 
 def test2_sinusoidal():
     print(f"\n{'='*65}")
-    print(f"TEST 2: SINUSOIDAL METHOD (AUDIO — Standard Test Tone)")
+    print(f"TEST 2: SINUSOIDAL METHOD (AUDIO - Standard Test Tone)")
     print(f"{'='*65}")
 
     b_ref,a_ref = signal.butter(ORDER_BA, CUTOFF_NORM, output='ba')
@@ -356,7 +356,7 @@ def test3_audio():
 def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
     print(f"\n{'='*65}")
     print(f"TEST 4: FREQUENCY RESPONSE COMPARISON PLOT (AUDIO)")
-    print(f"freqz() vs Impulse DTFT vs Sinusoidal method — same axes")
+    print(f"freqz() vs Impulse DTFT vs Sinusoidal method - same axes")
     print(f"{'='*65}")
 
     b_ref,a_ref = signal.butter(ORDER_BA, CUTOFF_NORM, output='ba')
@@ -367,7 +367,7 @@ def test4_freqz_comparison_plot(dtft_results, freqs_dtft, H_ref_mag, w_ref):
     for sid, order, label in [('ba', ORDER_BA,  'Direct-Form (BA)'),
                                ('sos',ORDER_SOS, 'Ladder (SOS)')]:
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-        fig.suptitle(f'Frequency Response Comparison — {label} order {order}\n'
+        fig.suptitle(f'Frequency Response Comparison - {label} order {order}\n'
                      f'freqz() vs Impulse DTFT vs Sinusoidal Method\n'
                      f'fs={FS}Hz  cutoff={CUTOFF_HZ}Hz',
                      fontsize=11, fontweight='bold')
@@ -470,7 +470,7 @@ def deterioration_sweep():
     print("\n* = SNR below 40 dB (audibly deteriorated)")
 
 
-# PART 2 — VLF RANGE TESTS (fs=1000Hz, cutoff=100Hz)
+# PART 2 - VLF RANGE TESTS (fs=1000Hz, cutoff=100Hz)
 
 def vlf_stability_check():
     print(f"\n{'='*65}")
@@ -499,8 +499,8 @@ def vlf_stability_check():
         print(row)
 
     print("* = UNSTABLE")
-    print(f"\nBA  order {ORDER_BA_VLF}  — highest stable at float16 (SM=+0.045)")
-    print(f"SOS order {ORDER_SOS_VLF} — highest with no float16 coefficient underflow")
+    print(f"\nBA  order {ORDER_BA_VLF}  - highest stable at float16 (SM=+0.045)")
+    print(f"SOS order {ORDER_SOS_VLF} - highest with no float16 coefficient underflow")
 
 
 def vlf_impulse_test():
@@ -684,12 +684,12 @@ def vlf_response_plot():
         ax.set_ylim(-100, 20)
         ax.set_xlabel('Frequency (Hz)')
         ax.set_ylabel('|H(f)| (dB)')
-        ax.set_title(f'VLF — {title}\nfs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz')
+        ax.set_title(f'VLF - {title}\nfs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz')
         ax.axvline(CUTOFF_VLF, color='gray', ls=':', lw=1)
         ax.legend(loc='lower left', fontsize=9)
         ax.grid(True, alpha=0.3)
 
-    plt.suptitle('VLF Filter Comparison — Direct-Form vs Ladder\n'
+    plt.suptitle('VLF Filter Comparison - Direct-Form vs Ladder\n'
                  f'fs={FS_VLF}Hz  cutoff={CUTOFF_VLF}Hz',
                  fontsize=11, fontweight='bold')
     plt.tight_layout()
@@ -732,7 +732,7 @@ if __name__ == '__main__':
     vlf_signal_test()
     vlf_response_plot()
 
-    # Summary — dynamically compute key SNR values and deterioration points
+    # Summary - dynamically compute key SNR values and deterioration points
     # Audio range SNR
     x_audio = speech_signal(N_AUDIO, FS)
     b_ref_a, a_ref_a = signal.butter(ORDER_BA,  CUTOFF_NORM, output='ba')
@@ -768,7 +768,7 @@ if __name__ == '__main__':
     snr_ba_f16_vlf  = calc_snr(ba_f16_v,  y_ref_ba_v)
     snr_sos_f16_vlf = calc_snr(sos_f16_v, y_ref_sos_v)
 
-    # Deterioration points — find order where SNR drops below 40 dB
+    # Deterioration points - find order where SNR drops below 40 dB
     x_det = speech_signal(FS*2, FS)
     SNR_THRESHOLD = 40.0
     ba_degrade_order  = None
@@ -812,7 +812,7 @@ if __name__ == '__main__':
     print(f"  SOS deteriorates at order {sos_degrade_order} (float16, SNR < {SNR_THRESHOLD} dB)")
     print(f"\nVLF RANGE KEY RESULTS (dynamically computed):")
     print(f"  BA  float16 SNR = {fmt_snr(snr_ba_f16_vlf)}"
-          + ("  (OVERFLOW — unusable)" if snr_ba_f16_vlf is None else ""))
+          + ("  (OVERFLOW - unusable)" if snr_ba_f16_vlf is None else ""))
     print(f"  SOS float16 SNR = {fmt_snr(snr_sos_f16_vlf)}"
           + (f"  (+{vlf_improvement:.1f} dB improvement)" if vlf_improvement else ""))
     print(f"\nLISTENING GUIDE (AUDIO):")
